@@ -1,3 +1,5 @@
 dynamodb_name: aws_account
 region: cn-north-1
 sqlitedb_name: /account_sqlite.db
+log_file: /tmp/life_cycle.log
+debug_flag: info

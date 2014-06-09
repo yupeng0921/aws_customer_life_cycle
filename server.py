@@ -4,8 +4,6 @@ import os
 import time
 import sqlite3
 import yaml
-import re
-import codecs
 import logging
 from flask import Flask, request, redirect, url_for, render_template, abort
 from werkzeug import secure_filename
@@ -19,7 +17,17 @@ with open(u'%s/conf.yaml' % os.path.split(os.path.realpath(__file__))[0], u'r') 
 dynamodb_name = conf[u'dynamodb_name']
 region = conf[u'region']
 sqlitedb_name = conf[u'sqlitedb_name']
+log_file = conf[u'log_file']
+debug_flag = conf[u'debug_flag']
 
+format = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(message)s'
+datefmt='%Y-%m-%d %H:%M:%S'
+if debug_flag == u'debug':
+    level = logging.DEBUG
+else:
+    level = logging.INFO
+logging.basicConfig(filename = log_file, level = level, format=format, datefmt=datefmt)
+                        
 upload_folder = u'upload'
 account_id_table = u'account_id'
 
@@ -31,6 +39,7 @@ cmd = u'create table if not exists %s (' % account_id_table + \
 cu.execute(cmd)
 cx.commit()
 cu.close()
+cx.close()
 
 app = Flask(__name__)
 
@@ -39,11 +48,13 @@ def index():
     return 'hello'
 
 def insert_to_table(insert_filename, overwrite):
+    logging.info(u'insert_filename: %s overwrite: %s' % (insert_filename, overwrite))
     conn = boto.dynamodb2.connect_to_region(region)
-    table = Table(table_name, connection=conn)
+    table = Table(dynamodb_name, connection=conn)
     f = open(insert_filename, u'r')
     line_number = 0
     error_lines = []
+    cx = sqlite3.connect(sqlitedb_name)
     cu = cx.cursor()
     for eachline in f:
         line_number += 1
@@ -51,6 +62,7 @@ def insert_to_table(insert_filename, overwrite):
         try:
             (account_id, date, email, revenue) = eachline.split(u',')
         except Exception, e:
+            logging.info(unicode(e))
             error_lines.append(line_number)
             continue
         data = {u'account_id': account_id,
@@ -58,8 +70,9 @@ def insert_to_table(insert_filename, overwrite):
                 u'email': email,
                 u'revenue': revenue}
         try:
-            table.put_item(date=data, overwrite=overwrite)
+            table.put_item(data=data, overwrite=overwrite)
         except Exception, e:
+            logging.info(unicode(e))
             error_lines.append(line_number)
             continue
         cmd = u'insert into account_id values("%s")' % account_id
@@ -69,6 +82,7 @@ def insert_to_table(insert_filename, overwrite):
             pass
     cx.commit()
     cu.close()
+    cx.close()
     return error_lines
 
 @app.route(u'/insert', methods=[u'GET', u'POST'])
@@ -77,7 +91,7 @@ def insert():
         insert_file = request.files[u'insert_file']
         if not insert_file:
             return u'no insert file'
-        filename = security_filename(insert_file.filename)
+        filename = secure_filename(insert_file.filename)
         timestamp = u'%f' % time.time()
         insert_filename = u'%s.%s' % (timestamp, filename)
         insert_filename = os.path.join(upload_folder, insert_filename)
@@ -91,7 +105,7 @@ def insert():
             ret = insert_to_table(insert_filename, overwrite)
         except Exception, e:
             os.remove(insert_filename)
-            return e
+            return unicode(e)
         if ret:
             return unicode(ret)
         else:
