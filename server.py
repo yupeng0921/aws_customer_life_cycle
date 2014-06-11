@@ -17,6 +17,7 @@ with open(u'%s/conf.yaml' % os.path.split(os.path.realpath(__file__))[0], u'r') 
 dynamodb_name = conf[u'dynamodb_name']
 region = conf[u'region']
 sqlitedb_name = conf[u'sqlitedb_name']
+account_id_table = conf[u'account_id_table']
 log_file = conf[u'log_file']
 debug_flag = conf[u'debug_flag']
 
@@ -27,14 +28,14 @@ if debug_flag == u'debug':
 else:
     level = logging.INFO
 logging.basicConfig(filename = log_file, level = level, format=format, datefmt=datefmt)
-                        
+
 upload_folder = u'upload'
-account_id_table = u'account_id'
 
 cx = sqlite3.connect(sqlitedb_name)
 cu = cx.cursor()
 cmd = u'create table if not exists %s (' % account_id_table + \
-    u'account_id varchar(24) primary key' + \
+    u'account_id varchar(24) primary key,' + \
+    u'count int' + \
     u')'
 cu.execute(cmd)
 cx.commit()
@@ -72,14 +73,22 @@ def insert_to_table(insert_filename, overwrite):
         try:
             table.put_item(data=data, overwrite=overwrite)
         except Exception, e:
-            logging.info(unicode(e))
+            logging.error(unicode(e))
             error_lines.append(line_number)
             continue
-        cmd = u'insert into account_id values("%s")' % account_id
+        cmd = u'insert into %s values("%s", 0)' % (account_id_table, account_id)
         try:
             cu.execute(cmd)
         except Exception, e:
             pass
+        cmd = u'update %s set count=count+1 where account_id="%s"' % (account_id_table, account_id)
+        try:
+            cu.execute(cmd)
+        except Exception, e:
+            logging.error(unicode(e))
+            error_lines.append(line_number)
+            continue
+    f.close()
     cx.commit()
     cu.close()
     cx.close()
@@ -112,24 +121,52 @@ def insert():
             return redirect(url_for(u'insert'))
     return render_template(u'insert.html')
 
-# @app.route(u'/delete', methods=[u'GET', u'POST'])
-# def delete():
-#     if request.method == u'POST':
-#         delete_file = request.files[u'delete_file']
-#         if not delete_file:
-#             return u'no delete file'
-#         filename = security_filename(delete_file.filename)
-#         timestamp = u'%f' % time.time()
-#         delete_filename = u'%s.%s' % (timestamp, filename)
-#         delete_filename = os.path.join(upload_folder, delete_filename)
-#         delete_file.save(delete_filename)
+# def delete_from_table(delete_filename):
+#     logging.info(u'delete_filename: %s' % delete_filename)
+#     conn = boto.dynamodb2.connect_to_region(region)
+#     table = Table(dynamodb_name, connection=conn)
+#     f = open(delete_filename, u'r')
+#     line_number = 0
+#     error_lines = []
+#     for eachline in f:
+#         line_number += 1
+#         eachline = eachline.strip()
 #         try:
-#             delete_from_table(delete_filename)
+#             (account_id, date) = eachline.split(u',')[0:2]
 #         except Exception, e:
-#             os.remove(delete_filename)
-#             return e
-#         return redirect(url_for(u'delete'))
-#     return render_template(u'delete.html')
+#             logging.info(unicode(e))
+#             error_lines.append(line_number)
+#             continue
+#         try:
+#             table.delete_item(account_id=account_id, date=date)
+#         except Exception, e:
+#             logging.info(unicode(e))
+#             error_lines.append(line_number)
+#             continue
+#     f.close()
+#     return error_lines
+
+@app.route(u'/delete', methods=[u'GET', u'POST'])
+def delete():
+    if request.method == u'POST':
+        delete_file = request.files[u'delete_file']
+        if not delete_file:
+            return u'no delete file'
+        filename = security_filename(delete_file.filename)
+        timestamp = u'%f' % time.time()
+        delete_filename = u'%s.%s' % (timestamp, filename)
+        delete_filename = os.path.join(upload_folder, delete_filename)
+        delete_file.save(delete_filename)
+        try:
+            ret = delete_from_table(delete_filename)
+        except Exception, e:
+            os.remove(delete_filename)
+            return unicode(e)
+        if ret:
+            return unicode(ret)
+        else:
+            return redirect(url_for(u'delete'))
+    return render_template(u'delete.html')
 
 if __name__ == u'__main__':
     app.debug = True
