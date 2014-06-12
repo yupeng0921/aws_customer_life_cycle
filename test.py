@@ -99,7 +99,10 @@ def parse_file(file_name, job_list):
     return job_list
 
 def get_data_from_db(index, name, context):
+    logging.debug('get_data_from_db: index: %s name: %s' % \
+                      (unicode(index), unicode(name)))
     if index < 1:
+        logging.warning('index < 1, %s' % unicode(index))
         return '0'
     items = context['items']
     fetched_items = context['fetched_items']
@@ -107,6 +110,8 @@ def get_data_from_db(index, name, context):
         try:
             item = items.next()
         except Exception, e:
+            logging.warning('db has no data for account: %s' % \
+                                context.account_id)
             return '0'
         fetched_items.append(item)
 
@@ -118,6 +123,8 @@ def get_data_from_db(index, name, context):
         try:
             item = items.next()
         except Exception, e:
+            logging.warning('db has no enough data, account: %s index: %s' % \
+                                contexxt.account_id, unicode(index))
             return '0'
         fetched_items.append(item)
 
@@ -125,6 +132,7 @@ def get_data_from_db(index, name, context):
     if name in item:
         return item[name]
     else:
+        logging.warning('db has no such attribute, %s' % name)
         return '0'
 
 def get_metadata_from_db(name, context):
@@ -216,18 +224,20 @@ def do_match(context, match):
         right = explain(right, context)
         logging.debug('condition: %s left: %s right %s' % (condition, left, right))
         ret = do_condition(condition, left, right)
+        logging.debug('condition result: %s' % unicode(ret))
         if not ret:
             return False
         if len(match) > 0:
             match.pop(0)
     if match:
         logging.warning('remain match: %s' % unicode(match))
+    return True
 
 def set_metadata_to_db(name, value, context):
     logging.info('name: %s value: %s' % (name, value))
 
 def call_function(name, parameters, context):
-    logging.info('name: %s parameters: %s' % (name, unicode(parameters)))
+    logging.info('call function, name: %s parameters: %s' % (name, unicode(parameters)))
 
 def do_action(context, action):
     action = action[:]
@@ -239,7 +249,7 @@ def do_action(context, action):
         name = action[0][1:]
         parameters = []
         for p in action[2:-1]:
-            parameters.append(explain(p),context)
+            parameters.append(explain(p, context))
         call_function(name, parameters, context)
     else:
         logging.warning('unknow action: %s' % action)
@@ -282,10 +292,9 @@ def run(job_list):
                    }
         for job in job_list:
             do_once(context, job)
-        i += 1
-        if i >= 2:
-            break
         ret = cu.fetchone()
+    cu.close()
+    cx.close()
 
 def do_job(job_dir_list):
     logging.info('start_job')
