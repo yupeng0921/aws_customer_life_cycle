@@ -5,7 +5,9 @@ import os
 import logging
 import yaml
 import types
+import codecs
 import boto
+import boto.ses
 from boto.dynamodb2.table import Table
 import sqlite3
 from pyparsing import *
@@ -28,7 +30,7 @@ else:
 logging.basicConfig(filename = log_file, level = level, format=format, datefmt=datefmt)
 
 number = Word(nums + ".")
-string = Suppress('"') + Word(alphanums+'_'+'@'+'.') + Suppress('"')
+string = Suppress('"') + Word(alphanums+'_'+'@'+'.'+'/'+'-') + Suppress('"')
 variable = Word('$', alphanums+'_'+'@'+'.'+'$')
 symbol = number | variable
 gt = symbol + ">" + symbol
@@ -236,8 +238,50 @@ def do_match(context, match):
 def set_metadata_to_db(name, value, context):
     logging.info('name: %s value: %s' % (name, value))
 
+def send_mail(parameters):
+    if len(parameters) < 4:
+        logging.error('send_email has no enough parameters: %s' % unicode(parameters))
+        return
+    base_dir = '/home/ec2-user/life_cycle/1/job/test1'
+    conf_file = parameters.pop(0)
+    conf_file = '%s/%s' % (base_dir, conf_file)
+    subject_file = parameters.pop(0)
+    subject_file = '%s/%s' % (base_dir, subject_file)
+    body_file = parameters.pop(0)
+    body_file = '%s/%s' % (base_dir, body_file)
+    to_addresses = parameters.pop(0)
+
+    try:
+        with codecs.open(conf_file, 'r', 'utf-8') as f:
+            conf1 = yaml.safe_load(f)
+    except Exception, e:
+        logging.error('load conf_file error, %s %s' % \
+                          (conf_file, unicode(e)))
+        return
+
+    aws_access_key_id = conf1['aws_access_key_id']
+    aws_secret_access_key = conf1['aws_secret_access_key']
+    region = conf1['region']
+    source = conf1['email_address']
+
+    with codecs.open(subject_file, 'r', 'utf-8') as f:
+        subject = f.read()
+
+    with codecs.open(body_file, 'r', 'utf-8') as f:
+        emailbody = f.read()
+
+    conn = boto.ses.connect_to_region(region, aws_access_key_id = aws_access_key_id, aws_secret_access_key = aws_secret_access_key)
+
+    conn.send_email(source, subject, None, \
+                        to_addresses, format='html', reply_addresses=source, \
+                        return_path=source, html_body=emailbody)
+
+buildin_func = {}
+buildin_func['send_mail'] = send_mail
 def call_function(name, parameters, context):
-    logging.info('call function, name: %s parameters: %s' % (name, unicode(parameters)))
+    logging.debug('call function, name: %s parameters: %s' % (name, unicode(parameters)))
+    func = buildin_func[name]
+    func(parameters)
 
 def do_action(context, action):
     action = action[:]
