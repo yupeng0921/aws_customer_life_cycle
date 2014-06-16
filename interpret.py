@@ -2,6 +2,10 @@
 
 import sys
 import os
+import yaml
+import re
+import logging
+
 import types
 tokens = (
     'FOR', 'IN', 'WHILE', 'IF', 'ELSE',
@@ -463,56 +467,70 @@ def p_error(t):
 import ply.yacc as yacc
 yacc.yacc()
 
-s='''
-a="strtest"
-b=4-3
-hello=(b)
-world= -hello
-c=a
-test1 = $4.gmail
-array1=[]
-$add(array1, 3)
-$add(array1, "test5")
-$add(array1, $4.gmail)
-$add(array1, 2+3*4)
-array2=array1
-$del(array1, $4.gmail)
-'''
+with open(u'%s/conf.yaml' % os.path.split(os.path.realpath(__file__))[0], u'r') as f:
+    conf = yaml.safe_load(f)
 
-s='''
-array1=[]
-$add(array1,1)
-$add(array1,2)
-$add(array1,3)
-array2=[]
-for i in array1 {
-$add(array2, i)
-}
-k=0
-l = 0
-for i in array1
-for j in array2{
-k = k+1
-l = k + 1
-}
-'''
+data_db_name = conf[u'data_db_name']
+metadata_db_name = conf[u'metadata_db_name']
+region = conf[u'region']
+log_file = conf[u'log_file']
+debug_flag = conf[u'debug_flag']
+job_directory = conf[u'job_directory']
 
-s='''
-i = 1
-a=2
-if (i)
-a=3
-'''
+format = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(message)s'
+datefmt='%Y-%m-%d %H:%M:%S'
+if debug_flag == u'debug':
+    level = logging.DEBUG
+else:
+    level = logging.INFO
+logging.basicConfig(filename = log_file, level = level, format=format, datefmt=datefmt)
 
-s='''
-i = 0
-j = 0
-while (i < 10) {
-j = j+i
-i = i+1
-}
-'''
-a=yacc.parse(s)
-variables = {}
-a=yacc.parse(s)
-print(variables)
+# a=yacc.parse(s)
+# variables = {}
+# a=yacc.parse(s)
+# print(variables)
+
+p_begin = re.compile(r'begin\s*\{')
+p_body = re.compile(r'\}\s*body\s*\{')
+p_end = re.compile(r'\}\s*end\s*\{')
+def get_script(script_file):
+    with open(script_file, u'r') as f:
+        script_string = f.read()
+    p = p_begin.search(script_string)
+    if not p:
+        raise Exception('script no begin field, %s' % script_file)
+    begin_start = p.start() + len(p.group())
+    p = p_body.search(script_string)
+    if not p:
+        raise Exception('script no body field, %s' % script_file)
+    begin_stop=p.start()
+    body_start=p.start() + len(p.group())
+    p = p_end.search(script_string)
+    if not p:
+        raise Exception('script no end field, %s' % script_file)
+    body_stop=p.start()
+    end_start = p.start() + len(p.group())
+    index = len(script_string) - 1
+    while index >= 0:
+        if script_string[index] == u'}':
+            break
+        index -= 1
+    if index < 0:
+        raise Exception('script no last paren, %s' % script_file)
+    end_stop = index
+    begin = script_string[begin_start:begin_stop]
+    body = script_string[body_start:body_stop]
+    end = script_string[end_start:end_stop]
+    return (begin, body, end)
+def do_job(current_job):
+    script_file = u'%s/%s/run.q' % (job_directory, current_job)
+    begin, body, end = get_script(script_file)
+    print(begin)
+    print('****************************')
+    print(body)
+    print('****************************')
+    print(end)
+
+if __name__ == '__main__':
+    current_job = sys.argv[1]
+    do_job(current_job)

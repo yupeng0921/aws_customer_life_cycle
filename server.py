@@ -17,7 +17,6 @@ with open(u'%s/conf.yaml' % os.path.split(os.path.realpath(__file__))[0], u'r') 
 data_db_name = conf[u'data_db_name']
 metadata_db_name = conf[u'metadata_db_name']
 region = conf[u'region']
-account_id_table = conf[u'account_id_table']
 log_file = conf[u'log_file']
 debug_flag = conf[u'debug_flag']
 
