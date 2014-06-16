@@ -9,6 +9,8 @@ tokens = (
     'STRING',
     'BUILDIN',
     'COMMA',
+    'FOR',
+    'IN',
     )
 
 # Tokens
@@ -25,6 +27,8 @@ t_RBRACKET = r'\]'
 t_BUILDIN  = r'\$[a-zA-Z0-9_\.]*'
 t_VARIABLE = r'[a-zA-Z_][a-zA-Z0-9_]*'
 t_COMMA    = r','
+t_FOR      = r'for'
+t_IN       = r'in'
 
 def t_NUMBER(t):
     r'\d+'
@@ -277,6 +281,10 @@ def p_expression_buildin_function1(t):
 def p_expression_buildin_function2(t):
     'expr : BUILDIN LPAREN expr COMMA expr RPAREN'
     t[0] = opr_node('fun2', [t[1], t[3], t[5]])
+
+def p_expression_for(t):
+    'expr : FOR VARIABLE IN VARIABLE stmt'
+    pass
 
 def p_error(t):
     print("Syntax error at '%s'" % t.value)
