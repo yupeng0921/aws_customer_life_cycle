@@ -6,6 +6,7 @@ tokens = (
     'PLUS','MINUS','TIMES','DIVIDE','EQUAL',
     'LPAREN','RPAREN',
     'LBRACKET', 'RBRACKET',
+    'LBRACE', 'RBRACE',
     'STRING',
     'BUILDIN',
     'COMMA',
@@ -24,11 +25,10 @@ t_LPAREN   = r'\('
 t_RPAREN   = r'\)'
 t_LBRACKET = r'\['
 t_RBRACKET = r'\]'
+t_LBRACE   = r'\{'
+t_RBRACE   = r'\}'
 t_BUILDIN  = r'\$[a-zA-Z0-9_\.]*'
-t_VARIABLE = r'[a-zA-Z_][a-zA-Z0-9_]*'
 t_COMMA    = r','
-t_FOR      = r'for'
-t_IN       = r'in'
 
 def t_NUMBER(t):
     r'\d+'
@@ -42,6 +42,18 @@ def t_NUMBER(t):
 def t_STRING(t):
     r'\"[a-zA-Z0-9_\/\.@]*\"'
     t.value = t.value[1:-1]
+    return t
+
+def t_FOR(t):
+    r'for'
+    return t
+
+def t_IN(t):
+    r'in'
+    return t
+
+def t_VARIABLE(t):
+    r'[a-zA-Z_][a-zA-Z0-9_]*'
     return t
 
 # Ignored characters
@@ -118,7 +130,7 @@ def variable_node(variable):
     node = Node('variable', variable)
     return node
 
-def build_variable_node(buildin_variable):
+def buildin_variable_node(buildin_variable):
     node = Node('buildin_variable', buildin_variable)
     return node
 
@@ -205,6 +217,21 @@ def interpret(node):
                 var = []
             var.append(itp1.value)
             variables[node.subnodes[0]] = var
+        elif node.value == 'FOR':
+            iter_name = node.subnodes[0]
+            iter_node = variable_node(iter_name)
+            list_name = node.subnodes[1]
+            list_value = variables[list_name]
+            if type(list_value) is not types.ListType:
+                raise Exception('%s is not list, can not loop' % list_name)
+            for item in list_value:
+                variables[iter_name] = item
+                itp = interpret(node.subnodes[2])
+            return itp
+        elif node.value == 'stmtlist':
+            itp1 = interpret(node.subnodes[0])
+            itp = interpret(node.subnodes[1])
+            return itp
         else:
             raise Exception('unknown opr type %s' % node.value)
     else:
@@ -226,6 +253,22 @@ def p_stmt_expr(t):
     'stmt : expr'
     t[0] = t[1]
 
+def p_stmt_for(t):
+    'stmt : FOR VARIABLE IN VARIABLE stmt'
+    t[0] = opr_node('FOR', [t[2], t[4], t[5]])
+
+def p_stmt_stmtlist(t):
+    'stmt : LBRACE stmtlist RBRACE'
+    t[0] = t[2]
+
+def p_stmtlist_1(t):
+    'stmtlist : stmt'
+    t[0] = t[1]
+
+def p_stmtlist_2(t):
+    'stmtlist : stmtlist stmt'
+    t[0] = opr_node('stmtlist', [t[1], t[2]])
+
 def p_expr_number(t):
     'expr : NUMBER'
     t[0] = number_node(t[1])
@@ -244,7 +287,7 @@ def p_expr_variable(t):
 
 def p_expr_buildin_variable(t):
     'expr : BUILDIN'
-    t[0] = build_variable_node(t[1])
+    t[0] = buildin_variable_node(t[1])
 
 def p_expression_uminus(t):
     'expr : MINUS expr %prec UMINUS'
@@ -282,17 +325,13 @@ def p_expression_buildin_function2(t):
     'expr : BUILDIN LPAREN expr COMMA expr RPAREN'
     t[0] = opr_node('fun2', [t[1], t[3], t[5]])
 
-def p_expression_for(t):
-    'expr : FOR VARIABLE IN VARIABLE stmt'
-    pass
-
 def p_error(t):
     print("Syntax error at '%s'" % t.value)
 
 import ply.yacc as yacc
 yacc.yacc()
 
-s='''\
+s='''
 a="strtest"
 b=4-3
 hello=(b)
@@ -308,6 +347,23 @@ array2=array1
 $del(array1, $4.gmail)
 '''
 
+s='''
+array1=[]
+$add(array1,1)
+$add(array1,2)
+$add(array1,3)
+array2=[]
+for i in array1 {
+$add(array2, i)
+}
+k=0
+l = 0
+for i in array1
+for j in array2{
+k = k+1
+l = k + 1
+}
+'''
 a=yacc.parse(s)
 variables = {}
 a=yacc.parse(s)
