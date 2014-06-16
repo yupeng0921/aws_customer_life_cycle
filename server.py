@@ -14,9 +14,9 @@ from boto.dynamodb2.table import Table
 with open(u'%s/conf.yaml' % os.path.split(os.path.realpath(__file__))[0], u'r') as f:
     conf = yaml.safe_load(f)
 
-dynamodb_name = conf[u'dynamodb_name']
+data_db_name = conf[u'data_db_name']
+metadata_db_name = conf[u'metadata_db_name']
 region = conf[u'region']
-sqlitedb_name = conf[u'sqlitedb_name']
 account_id_table = conf[u'account_id_table']
 log_file = conf[u'log_file']
 debug_flag = conf[u'debug_flag']
@@ -31,17 +31,6 @@ logging.basicConfig(filename = log_file, level = level, format=format, datefmt=d
 
 upload_folder = u'upload'
 
-cx = sqlite3.connect(sqlitedb_name)
-cu = cx.cursor()
-cmd = u'create table if not exists %s (' % account_id_table + \
-    u'account_id varchar(24) primary key,' + \
-    u'count int' + \
-    u')'
-cu.execute(cmd)
-cx.commit()
-cu.close()
-cx.close()
-
 app = Flask(__name__)
 
 @app.route(u'/', methods=[u'GET'])
@@ -51,12 +40,12 @@ def index():
 def insert_to_table(insert_filename, overwrite):
     logging.info(u'insert_filename: %s overwrite: %s' % (insert_filename, overwrite))
     conn = boto.dynamodb2.connect_to_region(region)
-    table = Table(dynamodb_name, connection=conn)
+    data_table = Table(data_db_name, connection=conn)
+    metadata_table = Table(metadata_db_name, connection=conn)
     f = open(insert_filename, u'r')
     line_number = 0
-    error_lines = []
-    cx = sqlite3.connect(sqlitedb_name)
-    cu = cx.cursor()
+    error_lines_no_overwrite = []
+    error_lines_overwrite = []
     for eachline in f:
         line_number += 1
         eachline = eachline.strip()
@@ -64,35 +53,48 @@ def insert_to_table(insert_filename, overwrite):
             (account_id, date, email, revenue) = eachline.split(u',')
         except Exception, e:
             logging.info(unicode(e))
-            error_lines.append(line_number)
+            error_lines_no_overwrite.append(line_number)
             continue
         data = {u'account_id': account_id,
                 u'date': date,
                 u'email': email,
                 u'revenue': revenue}
         try:
-            table.put_item(data=data, overwrite=overwrite)
+            data_table.put_item(data=data, overwrite=overwrite)
         except Exception, e:
             logging.error(unicode(e))
-            error_lines.append(line_number)
+            error_lines_no_overwrite.append(line_number)
             continue
-        cmd = u'insert into %s values("%s", 0)' % (account_id_table, account_id)
+
+        data = {u'account_id': account_id, u'count': 0}
         try:
-            cu.execute(cmd)
+            metadata_table.put_item(data=data, overwrite=False)
         except Exception, e:
             pass
-        cmd = u'update %s set count=count+1 where account_id="%s"' % (account_id_table, account_id)
+
         try:
-            cu.execute(cmd)
+            item = metadata_table.get_item(account_id=account_id)
         except Exception, e:
             logging.error(unicode(e))
-            error_lines.append(line_number)
+            error_lines_overwrite.append(line_number)
             continue
+
+        if not item:
+            logging.error(u'no metadata for %s %d' % (account_id, line_number))
+            error_lines_overwrite.append(line_number)
+
+        item[u'count'] = item[u'count'] + 1
+        try:
+            item.partial_save()
+        except Exception, e:
+            logging.error(unicode(e))
+            error_lines_overwrite.append(line_number)
     f.close()
-    cx.commit()
-    cu.close()
-    cx.close()
-    return error_lines
+    ret_dict = {}
+    if error_lines_no_overwrite or error_lines_overwrite:
+        ret_dict[u'no_overwrite_error'] = error_lines_no_overwrite
+        ret_dict[u'overwrite_error'] = error_lines_overwrite
+    return ret_dict
 
 @app.route(u'/insert', methods=[u'GET', u'POST'])
 def insert():
@@ -124,7 +126,7 @@ def insert():
 # def delete_from_table(delete_filename):
 #     logging.info(u'delete_filename: %s' % delete_filename)
 #     conn = boto.dynamodb2.connect_to_region(region)
-#     table = Table(dynamodb_name, connection=conn)
+#     table = Table(data_db_name, connection=conn)
 #     f = open(delete_filename, u'r')
 #     line_number = 0
 #     error_lines = []

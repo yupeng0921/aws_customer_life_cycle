@@ -1,5 +1,7 @@
 #! /usr/bin/env python
 
+import sys
+import os
 import types
 tokens = (
     'FOR', 'IN', 'WHILE', 'IF', 'ELSE',
