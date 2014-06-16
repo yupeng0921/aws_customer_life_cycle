@@ -5,6 +5,7 @@ tokens = (
     'FOR', 'IN', 'WHILE', 'IF', 'ELSE',
     'VARIABLE','NUMBER',
     'PLUS','MINUS','TIMES','DIVIDE','EQUAL',
+    'GT', 'GE', 'LT', 'LE', 'EQ', 'NE', 'AND', 'OR',
     'LPAREN','RPAREN',
     'LBRACKET', 'RBRACKET',
     'LBRACE', 'RBRACE',
@@ -20,6 +21,14 @@ t_MINUS    = r'-'
 t_TIMES    = r'\*'
 t_DIVIDE   = r'/'
 t_EQUAL    = r'='
+t_GT       = r'>'
+t_GE       = r'>='
+t_LT       = r'<'
+t_LE       = r'<='
+t_EQ       = r'=='
+t_NE       = r'\!='
+t_OR       = r'\|\|'
+t_AND      = r'&&'
 t_LPAREN   = r'\('
 t_RPAREN   = r'\)'
 t_LBRACKET = r'\['
@@ -88,6 +97,9 @@ lex.lex()
 precedence = (
     ('nonassoc', 'IFX'),
     ('nonassoc', 'ELSE'),
+    ('left', 'OR'),
+    ('left', 'AND'),
+    ('left', 'GT', 'GE', 'LT', 'LE', 'EQ', 'NE'),
     ('left','PLUS','MINUS'),
     ('left','TIMES','DIVIDE'),
     ('right','UMINUS'),
@@ -214,6 +226,54 @@ def interpret(node):
             itp2 = interpret(node.subnodes[1])
             itp.value = itp1.value / itp2.value
             return itp
+        elif node.value == 'GT':
+            itp1 = interpret(node.subnodes[0])
+            itp2 = interpret(node.subnodes[1])
+            if (itp1.value > itp2.value):
+                itp.value = 1
+            else:
+                itp.value = 0
+            return itp
+        elif node.value == 'GE':
+            itp1 = interpret(node.subnodes[0])
+            itp2 = interpret(node.subnodes[1])
+            if (itp1.value >= itp2.value):
+                itp.value = 1
+            else:
+                itp.value = 0
+            return itp
+        elif node.value == 'LT':
+            itp1 = interpret(node.subnodes[0])
+            itp2 = interpret(node.subnodes[1])
+            if (itp1.value < itp2.value):
+                itp.value = 1
+            else:
+                itp.value = 0
+            return itp
+        elif node.value == 'LE':
+            itp1 = interpret(node.subnodes[0])
+            itp2 = interpret(node.subnodes[1])
+            if (itp1.value <= itp2.value):
+                itp.value = 1
+            else:
+                itp.value = 0
+            return itp
+        elif node.value == 'EQ':
+            itp1 = interpret(node.subnodes[0])
+            itp2 = interpret(node.subnodes[1])
+            if (itp1.value == itp2.value):
+                itp.value = 1
+            else:
+                itp.value = 0
+            return itp
+        elif node.value == 'NE':
+            itp1 = interpret(node.subnodes[0])
+            itp2 = interpret(node.subnodes[1])
+            if (itp1.value != itp2.value):
+                itp.value = 1
+            else:
+                itp.value = 0
+            return itp
         elif node.value == 'fun2':
             func_name = node.subnodes[0][1:]
             func = func2_dict[func_name]
@@ -248,6 +308,12 @@ def interpret(node):
             elif len(node.subnodes) == 3:
                 itp = interpret(node.subnodes[2])
             return itp
+        elif node.value == 'WHILE':
+            itp1 = interpret(node.subnodes[0])
+            while itp1.value:
+                itp2 = interpret(node.subnodes[1])
+                itp1 = interpret(node.subnodes[0])
+            return itp2
         elif node.value == 'stmtlist':
             itp1 = interpret(node.subnodes[0])
             itp = interpret(node.subnodes[1])
@@ -341,6 +407,38 @@ def p_expression_divide(t):
     'expr : expr DIVIDE expr'
     t[0] = opr_node('DIVIDE', [t[1], t[3]])
 
+def p_expression_gt(t):
+    'expr : expr GT expr'
+    t[0] = opr_node('GT', [t[1], t[3]])
+
+def p_expression_ge(t):
+    'expr : expr GE expr'
+    t[0] = opr_node('GE', [t[1], t[3]])
+
+def p_expression_lt(t):
+    'expr : expr LT expr'
+    t[0] = opr_node('LT', [t[1], t[3]])
+
+def p_expression_le(t):
+    'expr : expr LE expr'
+    t[0] = opr_node('LE', [t[1], t[3]])
+
+def p_expression_eq(t):
+    'expr : expr EQ expr'
+    t[0] = opr_node('EQ', [t[1], t[3]])
+
+def p_expression_ne(t):
+    'expr : expr NE expr'
+    t[0] = opr_node('NE', [t[1], t[3]])
+
+def p_expression_and(t):
+    'expr : expr AND expr'
+    t[0] = opr_node('AND', [t[1], t[3]])
+
+def p_expression_or(t):
+    'expr : expr OR expr'
+    t[0] = opr_node('OR', [t[1], t[3]])
+
 def p_expression_paren(t):
     'expr : LPAREN expr RPAREN'
     t[0] = t[2]
@@ -402,6 +500,15 @@ i = 1
 a=2
 if (i)
 a=3
+'''
+
+s='''
+i = 0
+j = 0
+while (i < 10) {
+j = j+i
+i = i+1
+}
 '''
 a=yacc.parse(s)
 variables = {}
