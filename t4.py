@@ -80,6 +80,17 @@ def add_to_array(array, item):
 
 func2_dict['add'] = add_to_array
 
+def del_from_array(array, item):
+    if array in variables:
+        var = variables[array]
+        if type(var) is not types.ListType:
+            raise Exception('%s is not list' % array)
+        var.remove(item)
+        return ('number', 0)
+    else:
+        raise Exception('list %s is not init'  % array)
+func2_dict['del'] = del_from_array
+
 class Node():
     def __init__(self, nodetype, value, subnodes=[]):
         self.nodetype = nodetype
@@ -141,7 +152,11 @@ def interpret(node):
     elif node.nodetype == 'opr':
         if node.value == 'EQUAL':
             itp1 = interpret(node.subnodes[1])
-            variables[node.subnodes[0]] = itp1.value
+            if type(itp1.value) is types.ListType:
+                value = itp1.value[:]
+            else:
+                value = itp1.value
+            variables[node.subnodes[0]] = value
             return itp
         elif node.value == 'UMINUS':
             itp1 = interpret(node.subnodes[0])
@@ -159,6 +174,16 @@ def interpret(node):
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
             itp.value = itp1.value - itp2.value
+            return itp
+        elif node.value == 'TIMES':
+            itp1 = interpret(node.subnodes[0])
+            itp2 = interpret(node.subnodes[1])
+            itp.value = itp1.value * itp2.value
+            return itp
+        elif node.value == 'DIVIDE':
+            itp1 = interpret(node.subnodes[0])
+            itp2 = interpret(node.subnodes[1])
+            itp.value = itp1.value / itp2.value
             return itp
         elif node.value == 'fun2':
             func_name = node.subnodes[0][1:]
@@ -180,14 +205,6 @@ def interpret(node):
             raise Exception('unknown opr type %s' % node.value)
     else:
         raise Exception('unknown node nodetype %s' % node.nodetype)
-
-# def p_program(t):
-#     'program : init parsed'
-#     pass
-
-# def p_init(t):
-#     'init : '
-#     pass
 
 def p_parsed_1(t):
     'parsed : '
@@ -237,6 +254,14 @@ def p_expression_minus(t):
     'expr : expr MINUS expr'
     t[0] = opr_node('MINUS', [t[1], t[3]])
 
+def p_expression_times(t):
+    'expr : expr TIMES expr'
+    t[0] = opr_node('TIMES', [t[1], t[3]])
+
+def p_expression_divide(t):
+    'expr : expr DIVIDE expr'
+    t[0] = opr_node('DIVIDE', [t[1], t[3]])
+
 def p_expression_paren(t):
     'expr : LPAREN expr RPAREN'
     t[0] = t[2]
@@ -253,8 +278,8 @@ def p_expression_buildin_function2(t):
     'expr : BUILDIN LPAREN expr COMMA expr RPAREN'
     t[0] = opr_node('fun2', [t[1], t[3], t[5]])
 
-# def p_error(t):
-#     print("Syntax error at '%s'" % t.value)
+def p_error(t):
+    print("Syntax error at '%s'" % t.value)
 
 import ply.yacc as yacc
 yacc.yacc()
@@ -270,7 +295,12 @@ array1=[]
 $add(array1, 3)
 $add(array1, "test5")
 $add(array1, $4.gmail)
+$add(array1, 2+3*4)
+array2=array1
+$del(array1, $4.gmail)
 '''
 
+a=yacc.parse(s)
+variables = {}
 a=yacc.parse(s)
 print(variables)
