@@ -2,6 +2,7 @@
 
 import types
 tokens = (
+    'FOR', 'IN', 'WHILE', 'IF', 'ELSE',
     'VARIABLE','NUMBER',
     'PLUS','MINUS','TIMES','DIVIDE','EQUAL',
     'LPAREN','RPAREN',
@@ -10,8 +11,6 @@ tokens = (
     'STRING',
     'BUILDIN',
     'COMMA',
-    'FOR',
-    'IN',
     )
 
 # Tokens
@@ -52,6 +51,18 @@ def t_IN(t):
     r'in'
     return t
 
+def t_IF(t):
+    r'if'
+    return t
+
+def t_ELSE(t):
+    r'else'
+    return t
+
+def t_WHILE(t):
+    r'while'
+    return t
+
 def t_VARIABLE(t):
     r'[a-zA-Z_][a-zA-Z0-9_]*'
     return t
@@ -75,6 +86,8 @@ lex.lex()
 # Parsing rules
 
 precedence = (
+    ('nonassoc', 'IFX'),
+    ('nonassoc', 'ELSE'),
     ('left','PLUS','MINUS'),
     ('left','TIMES','DIVIDE'),
     ('right','UMINUS'),
@@ -228,6 +241,13 @@ def interpret(node):
                 variables[iter_name] = item
                 itp = interpret(node.subnodes[2])
             return itp
+        elif node.value == 'IF':
+            itp1 = interpret(node.subnodes[0])
+            if itp1.value:
+                itp = interpret(node.subnodes[1])
+            elif len(node.subnodes) == 3:
+                itp = interpret(node.subnodes[2])
+            return itp
         elif node.value == 'stmtlist':
             itp1 = interpret(node.subnodes[0])
             itp = interpret(node.subnodes[1])
@@ -256,6 +276,18 @@ def p_stmt_expr(t):
 def p_stmt_for(t):
     'stmt : FOR VARIABLE IN VARIABLE stmt'
     t[0] = opr_node('FOR', [t[2], t[4], t[5]])
+
+def p_stmt_if_1(t):
+    'stmt : IF LPAREN expr RPAREN stmt %prec IFX'
+    t[0] = opr_node('IF', [t[3], t[5]])
+
+def p_stmt_if_2(t):
+    'stmt : IF LPAREN expr RPAREN stmt ELSE stmt'
+    t[0] = opr_node('IF', [t[3], t[5], t[7]])
+
+def p_stmt_while(t):
+    'stmt : WHILE LPAREN expr RPAREN stmt'
+    t[0] = opr_node('WHILE', [t[3], t[5]])
 
 def p_stmt_stmtlist(t):
     'stmt : LBRACE stmtlist RBRACE'
@@ -363,6 +395,13 @@ for j in array2{
 k = k+1
 l = k + 1
 }
+'''
+
+s='''
+i = 1
+a=2
+if (i)
+a=3
 '''
 a=yacc.parse(s)
 variables = {}
