@@ -60,7 +60,7 @@ def t_NUMBER(t):
     return t
 
 def t_STRING(t):
-    r'\"[a-zA-Z0-9_\/\.@\-]*\"'
+    r'\"[a-zA-Z0-9_\/\.@\-\:]*\"'
     t.value = t.value[1:-1]
     return t
 
@@ -280,7 +280,9 @@ def get_data_from_db(index, name):
     else:
         raise Exception('no such field: %s' % name)
 
-def get_build_variable(name):
+def get_buildin_variable(name):
+    if context['stage'] != 'body':
+        raise Exception('can only get buildin variable in body state')
     metadata = context['metadata']
     if name == '$N':
         value = metadata['count']
@@ -306,6 +308,27 @@ def get_build_variable(name):
         index -= 1
         value = get_data_from_db(index, names[1])
         return ('string', value)
+
+def set_metadata(name, value):
+    if context['stage'] != 'body':
+        raise Exception('can only set metadata in body state')
+    metadata = context['metadata']
+    account_id = metadata['account_id']
+    if len(name) <= 2:
+        raise Exception('invalid metadata name: %s' % name)
+    if name[0:2] != '$$':
+        raise Exception('invalid metadata name: %s' % name)
+    name = name[2:]
+    metadata[name] = value
+    try:
+        ret = metadata.partial_save()
+    except Exception, e:
+        msg = 'set metadat failed, account_id: %s name: %s %s' % (account_id, name, unicode(e))
+        raise Exception(msg)
+    else:
+        if not ret:
+            msg = 'set metadat failed, account_id: %s name: %s' % (account_id, name)
+            raise Exception(msg)
 
 class Node():
     def __init__(self, nodetype, value, subnodes=[]):
@@ -356,7 +379,7 @@ def interpret(node):
         return itp
     elif node.nodetype == 'buildin_variable':
         v = node.value
-        (itp.itptype, itp.value) = get_build_variable(v)
+        (itp.itptype, itp.value) = get_buildin_variable(v)
         return itp
     elif node.nodetype == 'empty_list':
         itp.value = []
@@ -369,6 +392,15 @@ def interpret(node):
             else:
                 value = itp1.value
             variables[node.subnodes[0]] = value
+            itp.value = value
+            return itp
+        elif node.value == u'EQUAL_BUILDIN':
+            itp1 = interpret(node.subnodes[1])
+            value = unicode(itp1.value)
+            buildin_name = node.subnodes[0]
+            set_metadata(buildin_name, value)
+            itp.value = value
+            itp.itptype = 'string'
             return itp
         elif node.value == 'UMINUS':
             itp1 = interpret(node.subnodes[0])
@@ -558,6 +590,10 @@ def p_parsed_2(t):
 def p_stmt_assign_variable(t):
     'stmt : VARIABLE EQUAL expr'
     t[0] = opr_node('EQUAL_VARIABLE', [t[1], t[3]])
+
+def p_stmt_assign_buildin(t):
+    'stmt : BUILDIN EQUAL expr'
+    t[0] = opr_node('EQUAL_BUILDIN', [t[1], t[3]])
 
 def p_stmt_expr(t):
     'stmt : expr'
@@ -751,6 +787,7 @@ def get_script(script_file):
     return (begin, body, end)
 
 def do_job(current_job):
+    logging.info('start job: %s' % current_job)
     script_file = u'%s/%s/%s' % (job_directory, current_job, script_name)
     begin, body, end = get_script(script_file)
 
@@ -762,7 +799,9 @@ def do_job(current_job):
     context[u'current_job'] = current_job
     context[u'script_name'] = script_name
     context[u'data_table'] = data_table
+    context[u'stage'] = u'begin'
     yacc.parse(begin)
+    context[u'stage'] = u'body'
     metadatas = metadata_table.scan()
     for metadata in metadatas:
         account_id = metadata[u'account_id']
@@ -775,8 +814,14 @@ def do_job(current_job):
         context[u'items'] = items
         context[u'fetched_items'] = []
         yacc.parse(body)
+    context[u'stage'] = u'end'
     yacc.parse(end)
+    logging.info('stop job: %s' % current_job)
 
 if __name__ == '__main__':
     current_job = sys.argv[1]
-    do_job(current_job)
+    try:
+        do_job(current_job)
+    except Exception, e:
+        msg = 'run job failed, %s' % unicode(e)
+        logging.error(msg)
