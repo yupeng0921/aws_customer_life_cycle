@@ -6,6 +6,7 @@ import yaml
 import re
 import logging
 import types
+import codecs
 import boto
 import boto.ses
 from boto.dynamodb2.table import Table
@@ -150,15 +151,112 @@ func2_dict['del'] = del_from_array
 func3_dict = {}
 
 def write_to_file(file_name, content, option):
-    logging.info(u'write_to_file: file_name: %s content: %s option: %s' % (file_name, content, option))
+    logging.debug(u'write_to_file: file_name: %s content: %s option: %s' % (file_name, content, option))
+    base_dir = '%s/%s' % (context['job_directory'], context['current_job'])
+    full_file_path = '%s/%s' % (base_dir, file_name)
+    if option == 'append':
+        mode = 'a'
+    else:
+        mode = 'w'
+    content = '%s\n' % unicode(content)
+    try:
+        with codecs.open(full_file_path, mode, 'utf-8') as f:
+            f.write(content)
+    except Exception, e:
+        raise Exception('write file failed, %s %s %s' % \
+                            (full_file_path, mode, e))
     return ('number', 0)
 
 func3_dict['write_to_file'] = write_to_file
 
 func5_dict = {}
-def send_mail(conf_file, subject_file, body_file, dest_addr, replacement):
-    logging.info(u'send_mail: conf_file: %s subject_file: %s body_file: %s dest_addr: %s replacement: %s' % \
-                     (conf_file, subject_file, body_file, dest_addr, replacement))
+
+default_pattern_begin = u'\{\{'
+default_pattern_end = u'\}\}'
+def send_mail(conf_file, subject_file, body_file, dest_addr, replacements):
+    logging.debug(u'send_mail: conf_file: %s subject_file: %s body_file: %s dest_addr: %s replacements: %s' % \
+                     (conf_file, subject_file, body_file, dest_addr, replacements))
+    base_dir = '%s/%s' % (context['job_directory'], context['current_job'])
+    conf_file = '%s/%s' % (base_dir, conf_file)
+    subject_file = '%s/%s' % (base_dir, subject_file)
+    body_file = '%s/%s' % (base_dir, body_file)
+    to_addresses = dest_addr
+
+    try:
+        with codecs.open(conf_file, 'r', 'utf-8') as f:
+            conf1 = yaml.safe_load(f)
+    except Exception, e:
+        raise Exception('read conf file error: %s %s' % (conf_file, unicode(e)))
+
+    if 'aws_access_key_id' not in conf1:
+        raise Exception('no aws_access_key_id in %s' % conf_file)
+    aws_access_key_id = conf1['aws_access_key_id']
+    if 'aws_secret_access_key' not in conf1:
+        raise Exception('no aws_secret_access_key in %s' % conf_file)
+    aws_secret_access_key = conf1['aws_secret_access_key']
+
+    if 'region' not in conf1:
+        raise Exception('no region in %s' % conf_file)
+    region = conf1['region']
+
+    if 'source' not in conf1:
+        raise Exception('no source in %s' % conf_file)
+    source = conf1['source']
+
+    if 'reply_addresses' not in conf1:
+        raise Exception('no reply_addresses in %s' % conf_file)
+    reply_addresses = conf1['reply_addresses']
+
+    if 'return_path' not in conf1:
+        raise Exception('no return_path in %s' % conf_file)
+    return_path = conf1['return_path']
+
+    if 'pattern_begin' not in conf1:
+        pattern_begin = default_pattern_begin
+    else:
+        pattern_begin = conf1['pattern_begin']
+
+    if 'pattern_end' not in conf1:
+        pattern_end = default_pattern_end
+    else:
+        pattern_end = conf1['pattern_end']
+
+    try:
+        with codecs.open(subject_file, 'r', 'utf-8') as f:
+            subject = f.read()
+    except Exception, e:
+        raise Exception('read subject file error: %s %s' % (subject_file, unicode(e)))
+
+    if body_file[-5:] == '.html':
+        format = 'html'
+    elif body_file[-4:] == '.txt':
+        format = 'text'
+    else:
+        raise Exception('email body file should be .html or .txt, %s' % body_file)
+
+    try:
+        with codecs.open(body_file, 'r', 'utf-8') as f:
+            emailbody = f.read()
+    except Exception, e:
+        raise Exception('read emailbody file error: %s %s' % (body_file, unicode(e)))
+
+    count = 1
+    for replacement in replacements:
+        m = u'%s%s%s' % (pattern_begin, count, pattern_end)
+        p = re.compile(m)
+        emailbody, n = re.subn(p, replacement, emailbody)
+        if n == 0:
+            raise Exception('email mismatch: %s %s %d' % \
+                                (body_file, replacement, count))
+        count += 1
+
+    conn = boto.ses.connect_to_region(region, aws_access_key_id = aws_access_key_id, aws_secret_access_key = aws_secret_access_key)
+    if format == 'html':
+        conn.send_email(source, subject, None, to_addresses, format=format, \
+                            reply_addresses=reply_addresses, return_path=return_path, html_body=emailbody)
+    else:
+        conn.send_email(source, subject, None, to_addresses, format=format, \
+                            reply_addresses=reply_addresses, return_path=return_path, text_body=emailbody)
     return ('number', 0)
 
 func5_dict['send_mail'] = send_mail
@@ -246,8 +344,6 @@ def opr_node(oper, ops):
 
 def interpret(node):
     itp = ITPTYPE('number', 0)
-    if type(node) is types.StringType:
-        print(node)
     if node.nodetype == 'number' or node.nodetype == 'string':
         itp.itptype = node.nodetype
         itp.value = node.value
