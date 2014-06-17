@@ -17,7 +17,7 @@ with open(u'%s/conf.yaml' % os.path.split(os.path.realpath(__file__))[0], u'r') 
 data_db_name = conf[u'data_db_name']
 metadata_db_name = conf[u'metadata_db_name']
 region = conf[u'region']
-log_file = conf[u'log_file']
+server_log_file = conf[u'server_log_file']
 debug_flag = conf[u'debug_flag']
 
 format = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(message)s'
@@ -26,7 +26,7 @@ if debug_flag == u'debug':
     level = logging.DEBUG
 else:
     level = logging.INFO
-logging.basicConfig(filename = log_file, level = level, format=format, datefmt=datefmt)
+logging.basicConfig(filename = server_log_file, level = level, format=format, datefmt=datefmt)
 
 upload_folder = u'upload'
 

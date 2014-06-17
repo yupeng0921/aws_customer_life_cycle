@@ -5,8 +5,13 @@ import os
 import yaml
 import re
 import logging
-
 import types
+import boto
+import boto.ses
+from boto.dynamodb2.table import Table
+
+context = {}
+
 tokens = (
     'FOR', 'IN', 'WHILE', 'IF', 'ELSE',
     'VARIABLE','NUMBER',
@@ -41,7 +46,7 @@ t_LBRACKET = r'\['
 t_RBRACKET = r'\]'
 t_LBRACE   = r'\{'
 t_RBRACE   = r'\}'
-t_BUILDIN  = r'\$[a-zA-Z0-9_\.]*'
+t_BUILDIN  = r'\$[a-zA-Z0-9_\.\$]*'
 t_COMMA    = r','
 
 def t_NUMBER(t):
@@ -54,7 +59,7 @@ def t_NUMBER(t):
     return t
 
 def t_STRING(t):
-    r'\"[a-zA-Z0-9_\/\.@]*\"'
+    r'\"[a-zA-Z0-9_\/\.@\-]*\"'
     t.value = t.value[1:-1]
     return t
 
@@ -89,6 +94,10 @@ def t_newline(t):
 # def t_NEWLINE(t):
     r'\n+'
     t.lexer.lineno += t.value.count("\n")
+
+def t_COMMENT(t):
+    r'\#.*'
+    pass
 
 def t_error(t):
     print("Illegal character '%s'" % t.value[0])
@@ -138,6 +147,68 @@ def del_from_array(array, item):
         raise Exception('list %s is not init'  % array)
 func2_dict['del'] = del_from_array
 
+func3_dict = {}
+
+def write_to_file(file_name, content, option):
+    logging.info(u'write_to_file: file_name: %s content: %s option: %s' % (file_name, content, option))
+    return ('number', 0)
+
+func3_dict['write_to_file'] = write_to_file
+
+func5_dict = {}
+def send_mail(conf_file, subject_file, body_file, dest_addr, replacement):
+    logging.info(u'send_mail: conf_file: %s subject_file: %s body_file: %s dest_addr: %s replacement: %s' % \
+                     (conf_file, subject_file, body_file, dest_addr, replacement))
+    return ('number', 0)
+
+func5_dict['send_mail'] = send_mail
+
+def get_data_from_db(index, name):
+    metadata = context['metadata']
+    if index < 0:
+        raise Exception('invalide index: %d' % index)
+    items = context['items']
+    fetched_items = context['fetched_items']
+    while len(fetched_items) < (index+1):
+        try:
+            item = items.next()
+        except Exception, e:
+            raise Exception('no enough data %s %d' % (metadata['account_id'], index))
+        fetched_items.append(item)
+
+    item = fetched_items[index]
+    if name in item:
+        return item[name]
+    else:
+        raise Exception('no such field: %s' % name)
+
+def get_build_variable(name):
+    metadata = context['metadata']
+    if name == '$N':
+        value = metadata['count']
+        return ('number', value)
+    elif name == '$account_id':
+        value = metadata['account_id']
+        return ('string', value)
+    elif len(name) > 2 and name[0:2] == '$$':
+        name = name[2:]
+        if name not in metadata:
+            return ('string', '0')
+        else:
+            return ('string', metadata[name])
+    else:
+        name = name[1:]
+        names = name.split('.')
+        if len(names) != 2:
+            raise Exception('invalid buildin name: %s' % name)
+        try:
+            index = int(names[0])
+        except Exception, e:
+            raise Exception('buildin name is not number: %s' % name)
+        index -= 1
+        value = get_data_from_db(index, names[1])
+        return ('string', value)
+
 class Node():
     def __init__(self, nodetype, value, subnodes=[]):
         self.nodetype = nodetype
@@ -175,6 +246,8 @@ def opr_node(oper, ops):
 
 def interpret(node):
     itp = ITPTYPE('number', 0)
+    if type(node) is types.StringType:
+        print(node)
     if node.nodetype == 'number' or node.nodetype == 'string':
         itp.itptype = node.nodetype
         itp.value = node.value
@@ -186,18 +259,14 @@ def interpret(node):
             raise Exception('uninit variable: %s' % node.value)
         return itp
     elif node.nodetype == 'buildin_variable':
-        v = node.value[1:]
-        try:
-            v = int(v)
-        except Exception, e:
-            pass
-        itp.value = v
+        v = node.value
+        (itp.itptype, itp.value) = get_build_variable(v)
         return itp
     elif node.nodetype == 'empty_list':
         itp.value = []
         return itp
     elif node.nodetype == 'opr':
-        if node.value == 'EQUAL':
+        if node.value == 'EQUAL_VARIABLE':
             itp1 = interpret(node.subnodes[1])
             if type(itp1.value) is types.ListType:
                 value = itp1.value[:]
@@ -215,27 +284,37 @@ def interpret(node):
         elif node.value == 'PLUS':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            itp.value = itp1.value + itp2.value
+            v1 = int(itp1.value)
+            v2 = int(itp2.value)
+            itp.value = v1 + v2
             return itp
         elif node.value == 'MINUS':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            itp.value = itp1.value - itp2.value
+            v1 = int(itp1.value)
+            v2 = int(itp2.value)
+            itp.value = v1 - v2
             return itp
         elif node.value == 'TIMES':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            itp.value = itp1.value * itp2.value
+            v1 = int(itp1.value)
+            v2 = int(itp2.value)
+            itp.value = v1 * v2
             return itp
         elif node.value == 'DIVIDE':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            itp.value = itp1.value / itp2.value
+            v1 = int(itp1.value)
+            v2 = int(itp2.value)
+            itp.value = v1 / v2
             return itp
         elif node.value == 'GT':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            if (itp1.value > itp2.value):
+            v1 = int(itp1.value)
+            v2 = int(itp2.value)
+            if (v1 > v2):
                 itp.value = 1
             else:
                 itp.value = 0
@@ -243,7 +322,9 @@ def interpret(node):
         elif node.value == 'GE':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            if (itp1.value >= itp2.value):
+            v1 = int(itp1.value)
+            v2 = int(itp2.value)
+            if (v1 >= v2):
                 itp.value = 1
             else:
                 itp.value = 0
@@ -251,7 +332,9 @@ def interpret(node):
         elif node.value == 'LT':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            if (itp1.value < itp2.value):
+            v1 = int(itp1.value)
+            v2 = int(itp2.value)
+            if (v1 < v2):
                 itp.value = 1
             else:
                 itp.value = 0
@@ -259,7 +342,9 @@ def interpret(node):
         elif node.value == 'LE':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            if (itp1.value <= itp2.value):
+            v1 = int(itp1.value)
+            v2 = int(itp2.value)
+            if (v1 <= v2):
                 itp.value = 1
             else:
                 itp.value = 0
@@ -267,7 +352,9 @@ def interpret(node):
         elif node.value == 'EQ':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            if (itp1.value == itp2.value):
+            v1 = unicode(itp1.value)
+            v2 = unicode(itp2.value)
+            if (v1 == v2):
                 itp.value = 1
             else:
                 itp.value = 0
@@ -275,13 +362,31 @@ def interpret(node):
         elif node.value == 'NE':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            if (itp1.value != itp2.value):
+            v1 = unicode(itp1.value)
+            v2 = unicode(itp2.value)
+            if (v1 != v2):
                 itp.value = 1
             else:
                 itp.value = 0
             return itp
+        elif node.value == 'AND':
+            itp1 = interpret(node.subnodes[0])
+            itp2 = interpret(node.subnodes[1])
+            v1 = int(itp1.value)
+            v2 = int(itp2.value)
+            itp.value = v1 and v2
+            return itp
+        elif node.value == 'OR':
+            itp1 = interpret(node.subnodes[0])
+            itp2 = interpret(node.subnodes[1])
+            v1 = int(itp1.value)
+            v2 = int(itp2.value)
+            itp.value = v1 or v2
+            return itp
         elif node.value == 'fun2':
             func_name = node.subnodes[0][1:]
+            if func_name not in func2_dict:
+                raise Exception('no such function or funchtion is not two parameters: %s' % func_name)
             func = func2_dict[func_name]
             if func_name != 'add' and func_name != 'del':
                 itp1 = interpret(node.subnodes[1])
@@ -291,11 +396,28 @@ def interpret(node):
             itp2 = interpret(node.subnodes[2])
             (itp.itptype, itp.value) = func(param1, itp2.value)
             return itp
-            var = variables[node.subnodes[0].value]
-            if type(var) is not types.ListType:
-                var = []
-            var.append(itp1.value)
-            variables[node.subnodes[0]] = var
+        elif node.value == 'fun3':
+            func_name = node.subnodes[0][1:]
+            if func_name not in func3_dict:
+                raise Exception('no such function or funchtion is not three parameters: %s' % func_name)
+            func = func3_dict[func_name]
+            itp1 = interpret(node.subnodes[1])
+            itp2 = interpret(node.subnodes[2])
+            itp3 = interpret(node.subnodes[3])
+            (itp.itptype, itp.value) = func(itp1.value, itp2.value, itp3.value)
+            return itp
+        elif node.value == 'fun5':
+            func_name = node.subnodes[0][1:]
+            if func_name not in func5_dict:
+                raise Exception('no such function or funchtion is not five parameters: %s' % func_name)
+            func = func5_dict[func_name]
+            itp1 = interpret(node.subnodes[1])
+            itp2 = interpret(node.subnodes[2])
+            itp3 = interpret(node.subnodes[3])
+            itp4 = interpret(node.subnodes[4])
+            itp5 = interpret(node.subnodes[5])
+            (itp.itptype, itp.value) = func(itp1.value, itp2.value, itp3.value, itp4.value, itp5.value)
+            return itp
         elif node.value == 'FOR':
             iter_name = node.subnodes[0]
             iter_node = variable_node(iter_name)
@@ -337,9 +459,9 @@ def p_parsed_2(t):
     'parsed : parsed stmt'
     interpret(t[2])
 
-def p_stmt_assign(t):
+def p_stmt_assign_variable(t):
     'stmt : VARIABLE EQUAL expr'
-    t[0] = opr_node('EQUAL', [t[1], t[3]])
+    t[0] = opr_node('EQUAL_VARIABLE', [t[1], t[3]])
 
 def p_stmt_expr(t):
     'stmt : expr'
@@ -461,6 +583,18 @@ def p_expression_buildin_function2(t):
     'expr : BUILDIN LPAREN expr COMMA expr RPAREN'
     t[0] = opr_node('fun2', [t[1], t[3], t[5]])
 
+def p_expression_buildin_function3(t):
+    'expr : BUILDIN LPAREN expr COMMA expr COMMA expr RPAREN'
+    t[0] = opr_node('fun3', [t[1], t[3], t[5], t[7]])
+
+def p_expression_buildin_function4(t):
+    'expr : BUILDIN LPAREN expr COMMA expr COMMA expr COMMA expr RPAREN'
+    t[0] = opr_node('fun4', [t[1], t[3], t[5], t[7], t[9]])
+
+def p_expression_buildin_function5(t):
+    'expr : BUILDIN LPAREN expr COMMA expr COMMA expr COMMA expr COMMA expr RPAREN'
+    t[0] = opr_node('fun5', [t[1], t[3], t[5], t[7], t[9], t[11]])
+
 def p_error(t):
     print("Syntax error at '%s'" % t.value)
 
@@ -473,9 +607,10 @@ with open(u'%s/conf.yaml' % os.path.split(os.path.realpath(__file__))[0], u'r') 
 data_db_name = conf[u'data_db_name']
 metadata_db_name = conf[u'metadata_db_name']
 region = conf[u'region']
-log_file = conf[u'log_file']
+interpret_log_file = conf[u'interpret_log_file']
 debug_flag = conf[u'debug_flag']
 job_directory = conf[u'job_directory']
+script_name = conf[u'script_name']
 
 format = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(message)s'
 datefmt='%Y-%m-%d %H:%M:%S'
@@ -483,12 +618,7 @@ if debug_flag == u'debug':
     level = logging.DEBUG
 else:
     level = logging.INFO
-logging.basicConfig(filename = log_file, level = level, format=format, datefmt=datefmt)
-
-# a=yacc.parse(s)
-# variables = {}
-# a=yacc.parse(s)
-# print(variables)
+logging.basicConfig(filename = interpret_log_file, level = level, format=format, datefmt=datefmt)
 
 p_begin = re.compile(r'begin\s*\{')
 p_body = re.compile(r'\}\s*body\s*\{')
@@ -522,14 +652,30 @@ def get_script(script_file):
     body = script_string[body_start:body_stop]
     end = script_string[end_start:end_stop]
     return (begin, body, end)
+
 def do_job(current_job):
-    script_file = u'%s/%s/run.q' % (job_directory, current_job)
+    script_file = u'%s/%s/%s' % (job_directory, current_job, script_name)
     begin, body, end = get_script(script_file)
-    print(begin)
-    print('****************************')
-    print(body)
-    print('****************************')
-    print(end)
+
+    conn = boto.dynamodb2.connect_to_region(region)
+    data_table = Table(data_db_name, connection=conn)
+    metadata_table = Table(metadata_db_name, connection=conn)
+
+    context[u'job_directory'] = job_directory
+    context[u'current_job'] = current_job
+    context[u'script_name'] = script_name
+    context[u'data_table'] = data_table
+    yacc.parse(begin)
+    metadatas = metadata_table.scan()
+    for metadata in metadatas:
+        account_id = metadata[u'account_id']
+        items = data_table.query(account_id__eq=account_id, reverse=False)
+        fetched_items = []
+        context[u'metadata'] = metadata
+        context[u'items'] = items
+        context[u'fetched_items'] = []
+        yacc.parse(body)
+    yacc.parse(end)
 
 if __name__ == '__main__':
     current_job = sys.argv[1]
