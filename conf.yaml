@@ -4,6 +4,8 @@ region: cn-north-1
 account_id_table: account_id_table
 server_log_file: /tmp/life_cycle_server.log
 interpret_log_file: /tmp/life_cycle_interpret.log
-debug_flag: info
+server_debug_flag: info
+interpret_debug_flag: debug
 job_directory: /home/ec2-user/life_cycle/1/job
 script_name: run.q
+table_lock_id: "0"

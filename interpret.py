@@ -704,13 +704,14 @@ data_db_name = conf[u'data_db_name']
 metadata_db_name = conf[u'metadata_db_name']
 region = conf[u'region']
 interpret_log_file = conf[u'interpret_log_file']
-debug_flag = conf[u'debug_flag']
+interpret_debug_flag = conf[u'interpret_debug_flag']
 job_directory = conf[u'job_directory']
 script_name = conf[u'script_name']
+table_lock_id = conf[u'table_lock_id']
 
 format = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(message)s'
 datefmt='%Y-%m-%d %H:%M:%S'
-if debug_flag == u'debug':
+if interpret_debug_flag == u'debug':
     level = logging.DEBUG
 else:
     level = logging.INFO
@@ -765,6 +766,9 @@ def do_job(current_job):
     metadatas = metadata_table.scan()
     for metadata in metadatas:
         account_id = metadata[u'account_id']
+        if account_id == table_lock_id:
+            continue
+        logging.debug(u'parsing account: %s' % account_id)
         items = data_table.query(account_id__eq=account_id, reverse=False)
         fetched_items = []
         context[u'metadata'] = metadata

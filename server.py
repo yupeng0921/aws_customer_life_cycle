@@ -18,11 +18,12 @@ data_db_name = conf[u'data_db_name']
 metadata_db_name = conf[u'metadata_db_name']
 region = conf[u'region']
 server_log_file = conf[u'server_log_file']
-debug_flag = conf[u'debug_flag']
+server_debug_flag = conf[u'server_debug_flag']
+table_lock_id = conf[u'table_lock_id']
 
 format = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(message)s'
 datefmt='%Y-%m-%d %H:%M:%S'
-if debug_flag == u'debug':
+if server_debug_flag == u'debug':
     level = logging.DEBUG
 else:
     level = logging.INFO
@@ -41,6 +42,20 @@ def insert_to_table(insert_filename, overwrite):
     conn = boto.dynamodb2.connect_to_region(region)
     data_table = Table(data_db_name, connection=conn)
     metadata_table = Table(metadata_db_name, connection=conn)
+    lock_item = metadata_table.get_item(account_id=table_lock_id)
+    if not lock_item:
+        return u'no lock, check metadata db'
+    if u'status' not in lock_item:
+        return u'invalid lock, check metadata db'
+    if lock_item[u'status'] != u'unlock':
+        return u'table is locked, try it later'
+    lock_item[u'status'] = u'lock'
+    try:
+        ret = lock_item.save(overwrite=False)
+    except Exception, e:
+        return u'lock table failed, try it later'
+    if not ret:
+        return u'lock table failed, try it later'
     f = open(insert_filename, u'r')
     line_number = 0
     error_lines_no_overwrite = []
@@ -81,15 +96,41 @@ def insert_to_table(insert_filename, overwrite):
         if not item:
             logging.error(u'no metadata for %s %d' % (account_id, line_number))
             error_lines_overwrite.append(line_number)
+            continue
 
-        item[u'count'] = item[u'count'] + 1
-        try:
-            item.partial_save()
-        except Exception, e:
-            logging.error(unicode(e))
+        if u'count' not in item:
+            logging.error(u'invalid metadata %s %d' % (account_id, line_number))
             error_lines_overwrite.append(line_number)
+            continue
+
+        item[u'count'] += 1
+        try:
+            ret = item.partial_save()
+        except Exception, e:
+            msg = u'partial_save failed, account_id: %s %s' % (account_id, unicode(e))
+            logging.error(msg)
+            error_lines_overwrite.append(line_number)
+            continue
+        else:
+            if not ret:
+                msg = u'partial_save failed, account_id: %s' % account_id
+                logging.error(msg)
+                error_lines_overwrite.append(line_number)
+                continue
     f.close()
     ret_dict = {}
+    lock_item[u'status'] = 'unlock'
+    try:
+        ret = lock_item.save(overwrite=False)
+    except Exception, e:
+        msg = u'unlock failed %s' % unicode(e)
+        logging.error(msg)
+        ret_dict[u'lock_msg'] = msg
+    else:
+        if not ret:
+            msg = u'unlock failed'
+            logging.error(msg)
+            ret_dict[u'lock_msg'] = msg
     if error_lines_no_overwrite or error_lines_overwrite:
         ret_dict[u'no_overwrite_error'] = error_lines_no_overwrite
         ret_dict[u'overwrite_error'] = error_lines_overwrite
@@ -122,30 +163,110 @@ def insert():
             return redirect(url_for(u'insert'))
     return render_template(u'insert.html')
 
-# def delete_from_table(delete_filename):
-#     logging.info(u'delete_filename: %s' % delete_filename)
-#     conn = boto.dynamodb2.connect_to_region(region)
-#     table = Table(data_db_name, connection=conn)
-#     f = open(delete_filename, u'r')
-#     line_number = 0
-#     error_lines = []
-#     for eachline in f:
-#         line_number += 1
-#         eachline = eachline.strip()
-#         try:
-#             (account_id, date) = eachline.split(u',')[0:2]
-#         except Exception, e:
-#             logging.info(unicode(e))
-#             error_lines.append(line_number)
-#             continue
-#         try:
-#             table.delete_item(account_id=account_id, date=date)
-#         except Exception, e:
-#             logging.info(unicode(e))
-#             error_lines.append(line_number)
-#             continue
-#     f.close()
-#     return error_lines
+def delete_from_table(delete_filename):
+    logging.info(u'delete_filename: %s' % delete_filename)
+    conn = boto.dynamodb2.connect_to_region(region)
+    data_table = Table(data_db_name, connection=conn)
+    metadata_table = Table(metadata_db_name, connection=conn)
+    lock_item = metadata_table.get_item(account_id=table_lock_id)
+    if not lock_item:
+        return u'no lock, check metadata db'
+    if u'status' not in lock_item:
+        return u'invalid lock, check metadata db'
+    if lock_item[u'status'] != u'unlock':
+        return u'table is locked, try it later'
+    lock_item[u'status'] = u'lock'
+    try:
+        ret = lock_item.save(overwrite=False)
+    except Exception, e:
+        return u'lock table failed, try it later'
+    if not ret:
+        return u'lock table failed, try it later'
+    f = open(delete_filename, u'r')
+    line_number = 0
+    error_lines = []
+    for eachline in f:
+        line_number += 1
+        eachline = eachline.strip()
+        try:
+            (account_id, date) = eachline.split(u',')[0:2]
+        except Exception, e:
+            logging.error(unicode(e))
+            error_lines.append(line_number)
+            continue
+
+        try:
+            ret = data_table.get_item(account_id=account_id, date=date)
+        except Exception, e:
+            msg = 'get_item failed %s' % unicode(e)
+            logging.error(msg)
+            error_lines.append(line_number)
+            continue
+        else:
+            if not ret:
+                msg = 'get_item failed %s' % unicode(e)
+                logging.error(msg)
+                error_lines.append(line_number)
+                continue
+
+        try:
+            ret = data_table.delete_item(account_id=account_id, date=date)
+        except Exception, e:
+            logging.error(unicode(e))
+            error_lines.append(line_number)
+            continue
+        else:
+            if not ret:
+                logging.error(u'delete failed: account_id=%s date=%s' % (account_id, date))
+                error_lines.append(line_number)
+
+        try:
+            item = metadata_table.get_item(account_id=account_id)
+        except Exception, e:
+            logging.error(unicode(e))
+            error_lines.append(line_number)
+            continue
+
+        if not item:
+            logging.error(u'no metadata for %s %d' % (account_id, line_number))
+            error_lines.append(line_number)
+            continue
+
+        if u'count' not in item:
+            logging.error(u'invalid metadata %s %d' % (account_id, line_number))
+            error_lines.append((line_number))
+            continue
+
+        item[u'count'] -= 1
+        try:
+            ret = item.partial_save()
+        except Exception, e:
+            msg = u'partial_save failed, account_id: %s %s' % (account_id, unicode(e))
+            logging.error(msg)
+            error_lines.append(line_number)
+            continue
+        else:
+            if not ret:
+                msg = u'partial_save failed, account_id: %s' % (account_id)
+                logging.error(msg)
+                error_lines.append(line_number)
+    f.close()
+    ret_dict = {}
+    lock_item[u'status'] = 'unlock'
+    try:
+        ret = lock_item.save(overwrite=False)
+    except Exception, e:
+        msg = u'unlock failed %s' % unicode(e)
+        logging.error(msg)
+        ret_dict[u'lock_msg'] = msg
+    else:
+        if not ret:
+            msg = u'unlock failed'
+            logging.error(msg)
+            ret_dict[u'lock_msg'] = msg
+    if error_lines:
+        ret_dict[u'error_lines'] = error_lines
+    return ret_dict
 
 @app.route(u'/delete', methods=[u'GET', u'POST'])
 def delete():
@@ -153,7 +274,7 @@ def delete():
         delete_file = request.files[u'delete_file']
         if not delete_file:
             return u'no delete file'
-        filename = security_filename(delete_file.filename)
+        filename = secure_filename(delete_file.filename)
         timestamp = u'%f' % time.time()
         delete_filename = u'%s.%s' % (timestamp, filename)
         delete_filename = os.path.join(upload_folder, delete_filename)
