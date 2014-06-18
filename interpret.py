@@ -13,8 +13,28 @@ from boto.dynamodb2.table import Table
 
 context = {}
 
-tokens = (
-    'FOR', 'IN', 'WHILE', 'IF', 'ELSE',
+# tokens = (
+#     'FOR', 'IN', 'WHILE', 'IF', 'ELSE',
+#     'VARIABLE','NUMBER',
+#     'PLUS','MINUS','TIMES','DIVIDE','EQUAL',
+#     'GT', 'GE', 'LT', 'LE', 'EQ', 'NE', 'AND', 'OR',
+#     'LPAREN','RPAREN',
+#     'LBRACKET', 'RBRACKET',
+#     'LBRACE', 'RBRACE',
+#     'STRING',
+#     'BUILDIN',
+#     'COMMA',
+#     )
+
+reserved = {
+    'if': 'IF',
+    'else': 'ELSE',
+    'while': 'WHILE',
+    'for': 'FOR',
+    'in': 'IN',
+    }
+
+tokens = [
     'VARIABLE','NUMBER',
     'PLUS','MINUS','TIMES','DIVIDE','EQUAL',
     'GT', 'GE', 'LT', 'LE', 'EQ', 'NE', 'AND', 'OR',
@@ -24,8 +44,7 @@ tokens = (
     'STRING',
     'BUILDIN',
     'COMMA',
-    )
-
+    ] + list(reserved.values())
 # Tokens
 
 t_PLUS     = r'\+'
@@ -64,28 +83,29 @@ def t_STRING(t):
     t.value = t.value[1:-1]
     return t
 
-def t_FOR(t):
-    r'for'
-    return t
+# def t_FOR(t):
+#     r'for'
+#     return t
 
-def t_IN(t):
-    r'in'
-    return t
+# def t_IN(t):
+#     r'in'
+#     return t
 
-def t_IF(t):
-    r'if'
-    return t
+# def t_IF(t):
+#     r'if'
+#     return t
 
-def t_ELSE(t):
-    r'else'
-    return t
+# def t_ELSE(t):
+#     r'else'
+#     return t
 
-def t_WHILE(t):
-    r'while'
-    return t
+# def t_WHILE(t):
+#     r'while'
+#     return t
 
 def t_VARIABLE(t):
     r'[a-zA-Z_][a-zA-Z0-9_]*'
+    t.type = reserved.get(t.value,'VARIABLE')
     return t
 
 # Ignored characters

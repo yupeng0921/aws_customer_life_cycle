@@ -290,6 +290,23 @@ def delete():
             return redirect(url_for(u'delete'))
     return render_template(u'delete.html')
 
+@app.route(u'/script', methods=[u'GET', u'POST'])
+def script():
+    if request.method == u'POST':
+        script_package = request.files[u'script_package']
+        pass
+    packages = []
+    package = {'name': 'test1',
+               'schedule': '0 4 3 * *'}
+    packages.append(package)
+    package = {'name': 'test2',
+               'schedule': '0 8 5 * *'}
+    packages.append(package)
+    package = {'name': 'test3',
+               'schedule': '0 12 * * *'}
+    packages.append(package)
+    return render_template(u'script.html', packages=packages)
+
 if __name__ == u'__main__':
     app.debug = True
     app.run(host=u'0.0.0.0', port=80)
