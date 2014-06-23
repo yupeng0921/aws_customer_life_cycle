@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="description" content="">
+	<meta name="author" content="">
+
+	<title> script </title>
+
+	<!-- Bootstrap core CSS -->
+	<link href="/static/dist/css/bootstrap.css" rel="stylesheet">
+
+  </head>
+
+  <body>
+	<form role="form" action="/script?action=upload" method="post" enctype="multipart/form-data">
+	  <div class="form-group">
+		<label for="script_package">script_package</label>
+		<input type="file" id="script_package" name="script_package">
+	  </div>
+	  <div class="checkbox">
+		<label>
+		  <input type="checkbox" id="run_immediately" name="run_immediately" value="run_immediately"> run_immediately
+		</label>
+	  </div>
+	  <button type="submit" class="btn btn-default" id="submit" name="submit">Submit</button>
+	</form>
+
+	<p> </p>
+
+	<table class="table table-bordered">
+	  {% for package in packages %}
+	  <tr class="active">
+		<td> {{package.name}} </td>
+		<td> {{package.schedule}} </td>
+		<td>
+		  <form role="form" action="/script?action=delete&name={{package.name}}" method="post" enctype="multipart/form-data">
+			<button type="delete" class="btn btn-default" id="delete_{{package.name}}" name="delete_{{package.name}}">delete</button>
+		  </form>
+	  </tr>
+	  {% endfor %}
+	</table>
+  </body>
+</html>

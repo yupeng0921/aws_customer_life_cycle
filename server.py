@@ -293,8 +293,13 @@ def delete():
 @app.route(u'/script', methods=[u'GET', u'POST'])
 def script():
     if request.method == u'POST':
-        script_package = request.files[u'script_package']
-        pass
+        action = request.args.get(u'action')
+        if action == u'upload':
+            script_package = request.files[u'script_package']
+            logging.info(u'upload')
+        elif action == u'delete':
+            logging.info(u'delete')
+        return redirect(url_for(u'script'))
     packages = []
     package = {'name': 'test1',
                'schedule': '0 4 3 * *'}
