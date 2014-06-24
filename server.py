@@ -6,6 +6,7 @@ import zipfile
 import sqlite3
 import yaml
 import logging
+import shutil
 from crontab import CronTab
 from flask import Flask, request, redirect, url_for, render_template, abort
 from werkzeug import secure_filename
@@ -332,6 +333,23 @@ def extract_package_and_add_to_cron(package_zip_full_path, run_immediately):
     cron.write()
     os.remove(package_zip_full_path)
 
+def delete_package(package_name):
+    package_name_zip = u'%s.zip' % package_name
+    package_zip_full_path = u'%s/%s' % (job_directory, package_name_zip)
+    package_full_path = u'%s/%s' % (job_directory, package_name)
+    try:
+        os.remove(package_zip_full_path)
+    except Exception, e:
+        pass
+    cron = CronTab()
+    cron.remove_all(comment=package_name)
+    cron.write()
+    try:
+        shutil.rmtree(package_full_path)
+    except Exception, e:
+        logging.warning(u'remove pacakge failed: %s' % unicode(e))
+        pass
+
 @app.route(u'/script', methods=[u'GET', u'POST'])
 def script():
     if request.method == u'POST':
@@ -352,18 +370,26 @@ def script():
                 return unicode(e)
             
         elif action == u'delete':
-            logging.info(u'delete')
+            package_name = request.args.get(u'name')
+            delete_package(package_name)
+            try:
+                delete_package(package_name)
+            except Exception, e:
+                return unicode(e)
         return redirect(url_for(u'script'))
     packages = []
-    package = {'name': 'test1',
-               'schedule': '0 4 3 * *'}
-    packages.append(package)
-    package = {'name': 'test2',
-               'schedule': '0 8 5 * *'}
-    packages.append(package)
-    package = {'name': 'test3',
-               'schedule': '0 12 * * *'}
-    packages.append(package)
+    for name in os.listdir(job_directory):
+        package_full_path = os.path.join(job_directory, name)
+        if os.path.isdir(package_full_path):
+            schedule_file = os.path.join(package_full_path, schedule_name)
+            try:
+                with open(schedule_file, u'r') as f:
+                    schedule = f.read().strip()
+            except Exception, e:
+                schedule = u'NA'
+            package = {'name': name,
+                       'schedule': schedule}
+            packages.append(package)
     return render_template(u'script.html', packages=packages)
 
 if __name__ == u'__main__':
