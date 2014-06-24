@@ -2,9 +2,11 @@
 
 import os
 import time
+import zipfile
 import sqlite3
 import yaml
 import logging
+from crontab import CronTab
 from flask import Flask, request, redirect, url_for, render_template, abort
 from werkzeug import secure_filename
 
@@ -20,6 +22,9 @@ region = conf[u'region']
 server_log_file = conf[u'server_log_file']
 server_debug_flag = conf[u'server_debug_flag']
 table_lock_id = conf[u'table_lock_id']
+job_directory = conf[u'job_directory']
+schedule_name = conf[u'schedule_name']
+interpret_file = conf[u'interpret_file']
 
 format = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(message)s'
 datefmt='%Y-%m-%d %H:%M:%S'
@@ -290,13 +295,62 @@ def delete():
             return redirect(url_for(u'delete'))
     return render_template(u'delete.html')
 
+def unzip_file(zipfilename, unziptodir):
+    if not os.path.exists(unziptodir): os.mkdir(unziptodir, 0777)
+    zfobj = zipfile.ZipFile(zipfilename)
+    for name in zfobj.namelist():
+        name = name.replace('\\','/')
+        if name.endswith('/'):
+            os.mkdir(os.path.join(unziptodir, name))
+        else:
+            ext_filename = os.path.join(unziptodir, name)
+            ext_dir= os.path.dirname(ext_filename)
+            if not os.path.exists(ext_dir) : os.mkdir(ext_dir,0777)
+            outfile = open(ext_filename, 'wb')
+            outfile.write(zfobj.read(name))
+            outfile.close()
+
+def extract_package_and_add_to_cron(package_zip_full_path, run_immediately):
+    package_name_zip = package_zip_full_path.split(u'/')[-1]
+    if package_name_zip[-4:] != u'.zip':
+        raise Exception(u'%s is not zip file' % package_name_zip)
+    unzip_file(package_zip_full_path, job_directory)
+    package_name = package_name_zip[0:-4]
+    if run_immediately:
+        pass
+    schedule_file = u'%s/%s/%s' % (job_directory, package_name, schedule_name)
+    with open(schedule_file, u'r') as f:
+        schedule_policy = f.read().strip()
+    command = u'%s/%s %s' % (os.path.split(os.path.realpath(__file__))[0], interpret_file, package_name)
+    comment = package_name
+    cron = CronTab()
+    job = cron.new(command=command, comment=comment)
+    job.setall(schedule_policy)
+    job.enable(True)
+    if not job.is_valid():
+        raise Exception(u'schedule policy maybe invalide: %s' % schedule_policy)
+    cron.write()
+    os.remove(package_zip_full_path)
+
 @app.route(u'/script', methods=[u'GET', u'POST'])
 def script():
     if request.method == u'POST':
         action = request.args.get(u'action')
         if action == u'upload':
             script_package = request.files[u'script_package']
-            logging.info(u'upload')
+            filename = secure_filename(script_package.filename)
+            download_filename = os.path.join(job_directory, filename)
+            script_package.save(download_filename)
+            value = request.form.getlist(u'run_immediately')
+            if u'run_immediately' in value:
+                run_immediately = True
+            else:
+                run_immediately = False
+            try:
+                extract_package_and_add_to_cron(download_filename, run_immediately)
+            except Exception, e:
+                return unicode(e)
+            
         elif action == u'delete':
             logging.info(u'delete')
         return redirect(url_for(u'script'))

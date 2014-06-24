@@ -66,7 +66,7 @@ def t_NUMBER(t):
     return t
 
 def t_STRING(t):
-    r'\"[a-zA-Z0-9_\/\.@\-\:]*\"'
+    r'\"[a-zA-Z0-9_\/\.@\-\: ]*\"'
     t.value = t.value[1:-1]
     return t
 
@@ -789,18 +789,20 @@ def do_job(current_job):
     context[u'stage'] = u'begin'
     yacc.parse(begin)
     context[u'stage'] = u'body'
-    metadatas = metadata_table.scan()
-    for metadata in metadatas:
-        account_id = metadata[u'account_id']
-        if account_id == table_lock_id:
-            continue
-        logging.debug(u'parsing account: %s' % account_id)
-        items = data_table.query(account_id__eq=account_id, reverse=False)
-        fetched_items = []
-        context[u'metadata'] = metadata
-        context[u'items'] = items
-        context[u'fetched_items'] = []
-        yacc.parse(body)
+    body = body.strip()
+    if body:
+        metadatas = metadata_table.scan()
+        for metadata in metadatas:
+            account_id = metadata[u'account_id']
+            if account_id == table_lock_id:
+                continue
+            logging.debug(u'parsing account: %s' % account_id)
+            items = data_table.query(account_id__eq=account_id, reverse=False)
+            fetched_items = []
+            context[u'metadata'] = metadata
+            context[u'items'] = items
+            context[u'fetched_items'] = []
+            yacc.parse(body)
     context[u'stage'] = u'end'
     yacc.parse(end)
     logging.info('stop job: %s' % current_job)
