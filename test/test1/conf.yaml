@@ -1,5 +1,5 @@
-aws_access_key_id: AKIAJOJG6QMVKMRUSXJQ
-aws_secret_access_key: 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
+aws_access_key_id: 
+aws_secret_access_key: 
 region: us-east-1
 source: penyu@amazon.com
 reply_addresses: penyu@amazon.com
