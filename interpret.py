@@ -7,6 +7,7 @@ import re
 import logging
 import types
 import codecs
+import inspect
 import boto
 import boto.ses
 from boto.dynamodb2.table import Table
@@ -140,6 +141,21 @@ def del_from_array(array, item):
     else:
         raise Exception('list %s is not init'  % array)
 func2_dict['del'] = del_from_array
+
+def join_string(array, sep):
+    if array in variables:
+        var = variables[array]
+        if type(var) is not types.ListType:
+            raise Exception('%s is not list' % array)
+        ret = ''
+        for item in var:
+            item = unicode(item)
+            ret = '%s%s%s' % (ret, sep, item)
+        return ('string', ret)
+    else:
+        raise Exception('list %s is not init' % array)
+
+func2_dict['join'] = join_string
 
 func3_dict = {}
 
@@ -516,7 +532,7 @@ def interpret(node):
             if func_name not in func2_dict:
                 raise Exception('no such function or funchtion is not two parameters: %s' % func_name)
             func = func2_dict[func_name]
-            if func_name != 'add' and func_name != 'del':
+            if func_name != 'add' and func_name != 'del' and func_name != 'join':
                 itp1 = interpret(node.subnodes[1])
                 param1 = itp1.value
             else:
@@ -826,5 +842,4 @@ if __name__ == '__main__':
     try:
         do_job(current_job)
     except Exception, e:
-        msg = 'run job failed, %s' % unicode(e)
-        logging.error(msg)
+        logging.exception('run job failed')
