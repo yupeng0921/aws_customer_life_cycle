@@ -25,7 +25,7 @@ reserved = {
 tokens = [
     'VARIABLE','NUMBER',
     'PLUS','MINUS','TIMES','DIVIDE','EQUAL',
-    'GT', 'GE', 'LT', 'LE', 'EQ', 'NE', 'AND', 'OR',
+    'GT', 'GE', 'LT', 'LE', 'EQ', 'NE', 'AND', 'OR', 'MOD',
     'LPAREN','RPAREN',
     'LBRACKET', 'RBRACKET',
     'LBRACE', 'RBRACE',
@@ -48,6 +48,7 @@ t_EQ       = r'=='
 t_NE       = r'\!='
 t_OR       = r'\|\|'
 t_AND      = r'&&'
+t_MOD      = r'%'
 t_LPAREN   = r'\('
 t_RPAREN   = r'\)'
 t_LBRACKET = r'\['
@@ -520,6 +521,13 @@ def interpret(node):
             v2 = int(itp2.value)
             itp.value = v1 or v2
             return itp
+        elif node.value == 'MOD':
+            itp1 = interpret(node.subnodes[0])
+            itp2 = interpret(node.subnodes[1])
+            v1 = int(itp1.value)
+            v2 = int(itp2.value)
+            itp.value = v1 % v2
+            return itp
         elif node.value == 'fun1':
             func_name = node.subnodes[0][1:]
             if func_name not in func1_dict:
@@ -714,6 +722,10 @@ def p_expression_and(t):
 def p_expression_or(t):
     'expr : expr OR expr'
     t[0] = opr_node('OR', [t[1], t[3]])
+
+def p_expression_mod(t):
+    'expr : expr MOD expr'
+    t[0] = opr_node('MOD', [t[1], t[3]])
 
 def p_expression_paren(t):
     'expr : LPAREN expr RPAREN'
