@@ -106,7 +106,6 @@ precedence = (
     ('left', 'GT', 'GE', 'LT', 'LE', 'EQ', 'NE'),
     ('left','PLUS','MINUS'),
     ('left','TIMES','DIVIDE'),
-    ('right','UMINUS'),
     )
 
 # dictionary of variables
@@ -412,13 +411,6 @@ def interpret(node):
             itp.value = value
             itp.itptype = 'string'
             return itp
-        elif node.value == 'UMINUS':
-            itp1 = interpret(node.subnodes[0])
-            if itp1.itptype == 'number':
-                itp.value = -itp1.value
-                return itp
-            else:
-                raise Exception('unsupport uminus type: %s' % itp1.itptype)
         elif node.value == 'PLUS':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
@@ -670,10 +662,6 @@ def p_expr_variable(t):
 def p_expr_buildin_variable(t):
     'expr : BUILDIN'
     t[0] = buildin_variable_node(t[1])
-
-def p_expression_uminus(t):
-    'expr : MINUS expr %prec UMINUS'
-    t[0] = opr_node('UMINUS', [t[2]])
 
 def p_expression_plus(t):
     'expr : expr PLUS expr'
