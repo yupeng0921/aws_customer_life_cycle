@@ -26,6 +26,9 @@ table_lock_id = conf[u'table_lock_id']
 job_directory = conf[u'job_directory']
 schedule_name = conf[u'schedule_name']
 interpret_file = conf[u'interpret_file']
+task_db = conf[u'task_db']
+task_table = conf[u'task_table']
+task_magic_string = conf[u'task_magic_string']
 
 format = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(message)s'
 datefmt='%Y-%m-%d %H:%M:%S'
@@ -318,7 +321,24 @@ def extract_package_and_add_to_cron(package_zip_full_path, run_immediately):
     unzip_file(package_zip_full_path, job_directory)
     package_name = package_name_zip[0:-4]
     if run_immediately:
-        pass
+        cx = sqlite3.connect(task_db)
+        cu = cx.cursor()
+        cmd = u'delete from %s where magic_string="%s" and status="done"' % \
+            (task_table, task_magic_string)
+        cu.execute(cmd)
+        cx.commit()
+        status = u'doing'
+        cmd = u'insert into %s values("%s", "%s", "%s")' % \
+            (task_table, task_magic_string, package_name, status)
+        try:
+            cu.execute(cmd)
+            cx.commit()
+        except Exception, e:
+            cu.close()
+            cx.close()
+            raise Exception(u'submit job failed: %s' % unicode(e))
+        cu.close()
+        cx.close()
     schedule_file = u'%s/%s/%s' % (job_directory, package_name, schedule_name)
     with open(schedule_file, u'r') as f:
         schedule_policy = f.read().strip()
