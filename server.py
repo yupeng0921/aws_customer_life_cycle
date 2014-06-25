@@ -46,7 +46,7 @@ app = Flask(__name__)
 
 @app.route(u'/', methods=[u'GET'])
 def index():
-    return 'hello'
+    return render_template(u'index.html')
 
 def insert_to_table(insert_filename, overwrite):
     logging.info(u'insert_filename: %s overwrite: %s' % (insert_filename, overwrite))
