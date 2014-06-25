@@ -29,6 +29,8 @@ interpret_file = conf[u'interpret_file']
 task_db = conf[u'task_db']
 task_table = conf[u'task_table']
 task_magic_string = conf[u'task_magic_string']
+script_name = conf[u'script_name']
+log_file = conf[u'log_file']
 
 format = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(message)s'
 datefmt='%Y-%m-%d %H:%M:%S'
@@ -411,6 +413,22 @@ def script():
                        'schedule': schedule}
             packages.append(package)
     return render_template(u'script.html', packages=packages)
+
+@app.route(u'/script/<package_name>', methods=[u'GET'])
+def show_package(package_name=None):
+    show = request.args.get(u'show')
+    if show == u'log':
+        file_path = u'%s/%s/%s' % (job_directory, package_name, log_file)
+    elif show == u'script':
+        file_path = u'%s/%s/%s' % (job_directory, package_name, script_name)
+    else:
+        return u'un support item: %s' % show
+    try:
+        with open(file_path, r'r') as f:
+            show_string = f.read()
+    except Exception, e:
+        return u'read %s error: %s' % (file_path, unicode(e))
+    return render_template(u'show_package.html', show_string=show_string)
 
 if __name__ == u'__main__':
     app.debug = True
