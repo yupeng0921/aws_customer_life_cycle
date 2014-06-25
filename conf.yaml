@@ -4,8 +4,8 @@ region: cn-north-1
 account_id_table: account_id_table
 server_log_file: /tmp/life_cycle_server.log
 server_debug_flag: info
-interpret_log_file: /tmp/life_cycle_interpret.log
-interpret_debug_flag: debug
+log_file: $__log
+interpret_debug_flag: info
 daemon_log_file: /tmp/life_cycle_daemon.log
 daemon_debug_flag: info
 job_directory: /home/ec2-user/life_cycle/1/job

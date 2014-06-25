@@ -79,7 +79,6 @@ def t_VARIABLE(t):
 t_ignore = " \t"
 
 def t_newline(t):
-# def t_NEWLINE(t):
     r'\n+'
     t.lexer.lineno += t.value.count("\n")
 
@@ -110,6 +109,13 @@ precedence = (
 
 # dictionary of variables
 variables = {}
+
+func1_dict = {}
+def write_log(msg):
+    logging.info(msg)
+    return ('number', 0)
+
+func1_dict['log'] = write_log
 
 func2_dict = {}
 def add_to_array(array, item):
@@ -498,6 +504,13 @@ def interpret(node):
             v2 = int(itp2.value)
             itp.value = v1 or v2
             return itp
+        elif node.value == 'fun1':
+            func_name = node.subnodes[0][1:]
+            if func_name not in func1_dict:
+                raise Exception('no such function or funchtion is not one parameters: %s' % func_name)
+            func = func1_dict[func_name]
+            itp1 = interpret(node.subnodes[1])
+            (itp.itptype, itp.value) = func(itp1.value)
         elif node.value == 'fun2':
             func_name = node.subnodes[0][1:]
             if func_name not in func2_dict:
@@ -726,19 +739,12 @@ with open(u'%s/conf.yaml' % os.path.split(os.path.realpath(__file__))[0], u'r') 
 data_db_name = conf[u'data_db_name']
 metadata_db_name = conf[u'metadata_db_name']
 region = conf[u'region']
-interpret_log_file = conf[u'interpret_log_file']
+log_file = conf[u'log_file']
 interpret_debug_flag = conf[u'interpret_debug_flag']
 job_directory = conf[u'job_directory']
 script_name = conf[u'script_name']
 table_lock_id = conf[u'table_lock_id']
 
-format = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(message)s'
-datefmt='%Y-%m-%d %H:%M:%S'
-if interpret_debug_flag == u'debug':
-    level = logging.DEBUG
-else:
-    level = logging.INFO
-logging.basicConfig(filename = interpret_log_file, level = level, format=format, datefmt=datefmt)
 
 p_begin = re.compile(r'begin\s*\{')
 p_body = re.compile(r'\}\s*body\s*\{')
@@ -774,6 +780,14 @@ def get_script(script_file):
     return (begin, body, end)
 
 def do_job(current_job):
+    format = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(message)s'
+    datefmt='%Y-%m-%d %H:%M:%S'
+    if interpret_debug_flag == u'debug':
+        level = logging.DEBUG
+    else:
+        level = logging.INFO
+    logfile = u'%s/%s/%s' % (job_directory, current_job, log_file)
+    logging.basicConfig(filename = logfile, level = level, format=format, datefmt=datefmt)
     logging.info('start job: %s' % current_job)
     script_file = u'%s/%s/%s' % (job_directory, current_job, script_name)
     begin, body, end = get_script(script_file)
