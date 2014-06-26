@@ -430,6 +430,9 @@ def show_package(package_name=None):
         return u'read %s error: %s' % (file_path, unicode(e))
     return render_template(u'show_package.html', show_string=show_string)
 
+@app.route(u'/help')
+def show_help():
+    return render_template(u'test.html')
 if __name__ == u'__main__':
     app.debug = True
     app.run(host=u'0.0.0.0', port=80)

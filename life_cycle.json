@@ -1,0 +1,240 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09",
+
+    "Description" : "deploy aws customer life cycle manager environment",
+
+    "Parameters" : {
+        "KeyName" : {
+            "Type" : "String",
+            "Description" : "key pair for server"
+        },
+        "DataDbReadCapacityUnits" : {
+            "Type" : "Number",
+            "Default" : "100",
+            "Description" : "dynamodb datadb read capacity"
+        },
+        "DataDbWriteCapacityUnits" : {
+            "Type" : "Number",
+			"Default" : "100",
+            "Description" : "dynamodb datadb write capacity"
+        },
+        "MetadataDbReadCapacityUnits" : {
+            "Type" : "Number",
+            "Default" : "100",
+            "Description" : "dynamodb metadatadb read capacity"
+        },
+        "MetadataDbWriteCapacityUnits" : {
+            "Type" : "Number",
+			"Default" : "100",
+            "Description" : "dynamodb metadatadb write capacity"
+        },
+        "ServerInstanceType" : {
+            "Type" : "String",
+            "Default" : "m1.small",
+            "Description" : "server instance type"
+        }
+    },
+
+    "Mappings" : {
+        "Region2Ami" : {
+            "us-east-1" : { "AMI" : "ami-fb8e9292" },
+            "us-west-2" : { "AMI" : "ami-043a5034" },
+            "us-west-1" : { "AMI" : "ami-7aba833f" },
+            "eu-west-1" : { "AMI" : "ami-2918e35e" },
+            "ap-southeast-1" : { "AMI" : "ami-b40d5ee6" },
+            "ap-northeast-1" : { "AMI" : "ami-c9562fc8" },
+            "ap-southeast-2" : { "AMI" : "ami-3b4bd301" },
+            "sa-east-1" : { "AMI" : "ami-215dff3c" },
+            "cn-north-1" : { "AMI" : "ami-cab82af3" }
+        }
+    },
+
+    "Resources" : {
+        "DataDb" : {
+            "Type" : "AWS::DynamoDB::Table",
+            "Properties" : {
+                "KeySchema" : {
+                    "HashKeyElement" : {
+                        "AttributeName" : "account_id",
+                        "AttributeType" : "S"
+                    },
+                    "RangeKeyElement" : {
+                        "AttributeName" : "date",
+                        "AttributeType" : "S"
+                    }
+                },
+                "ProvisionedThroughput" : {
+                    "ReadCapacityUnits" : { "Ref" : "DataDbReadCapacityUnits" },
+                    "WriteCapacityUnits" : { "Ref" : "DataDbWriteCapacityUnits" }
+                }
+            }
+        },
+        "MetadataDb" : {
+            "Type" : "AWS::DynamoDB::Table",
+            "Properties" : {
+                "KeySchema" : {
+                    "HashKeyElement" : {
+                        "AttributeName" : "account_id",
+                        "AttributeType" : "S"
+                    }
+                },
+                "ProvisionedThroughput" : {
+                    "ReadCapacityUnits" : { "Ref" : "MetadataDbReadCapacityUnits" },
+                    "WriteCapacityUnits" : { "Ref" : "MetadataDbWriteCapacityUnits" }
+                }
+            }
+        },
+
+        "ServerSecurityGroup" : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription" : "security group for web server",
+                "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" :  "tcp",
+                        "FromPort" : "80",
+                        "ToPort" : "80",
+                        "CidrIp" : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" :  "tcp",
+                        "FromPort" : "443",
+                        "ToPort" : "443",
+                        "CidrIp" : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort" : "22",
+                        "ToPort" : "22",
+                        "CidrIp" : "0.0.0.0/0"
+                    }
+                ]
+            }
+        },
+
+        "ServerRole" : {
+            "Type" : "AWS::IAM::Role",
+            "Properties" : {
+                "AssumeRolePolicyDocument" : {
+                    "Statement" : [ {
+                        "Effect" : "Allow",
+                        "Principal" : {
+                            "Service" : [ "ec2.amazonaws.com" ]
+                        },
+                        "Action" : [ "sts:AssumeRole" ]
+                    } ]
+                },
+                "Path" : "/",
+                "Policies" : [ {
+                    "PolicyName" : "ServerPolicy",
+                    "PolicyDocument" : {
+                        "Statement" : [
+                            {
+                                "Effect" : "Allow",
+                                "Action" : "dynamodb:*",
+                                "Resource" : { "Fn::Join" : [ "", [
+                                    "arn:aws:dynamodb:",
+                                    { "Ref" : "AWS::Region" },
+                                    ":*:table/",
+                                    { "Ref" : "DataDb" }
+                                ] ] }
+                            },
+                            {
+                                "Effect" : "Allow",
+                                "Action" : "dynamodb:*",
+                                "Resource" : { "Fn::Join" : [ "", [
+                                    "arn:aws:dynamodb:",
+                                    { "Ref" : "AWS::Region" },
+                                    ":*:table/",
+                                    { "Ref" : "DataDb" },
+                                    "/*"
+                                ] ] }
+                            },
+                            {
+                                "Effect" : "Allow",
+                                "Action" : "dynamodb:*",
+                                "Resource" : { "Fn::Join" : [ "", [
+                                    "arn:aws:dynamodb:",
+                                    { "Ref" : "AWS::Region" },
+                                    ":*:table/",
+                                    { "Ref" : "MetadataDb" }
+                                ] ] }
+                            },
+                            {
+                                "Effect" : "Allow",
+                                "Action" : "dynamodb:*",
+                                "Resource" : { "Fn::Join" : [ "", [
+                                    "arn:aws:dynamodb:",
+                                    { "Ref" : "AWS::Region" },
+                                    ":*:table/",
+                                    { "Ref" : "MetadataDb" },
+                                    "/*"
+                                ] ] }
+                            }
+                        ]
+                    }
+                }]
+            }
+        },
+
+        "ServerProfile" : {
+            "Type" : "AWS::IAM::InstanceProfile",
+            "Properties" : {
+                "Path" : "/",
+                "Roles" : [ {
+                    "Ref" : "ServerRole"
+                } ]
+            }
+        },
+
+        "ServerInstance" : {
+            "Type" : "AWS::EC2::Instance",
+            "DependsOn" : "MetadataDb",
+            "Properties" : {
+                "KeyName" : { "Ref" : "KeyName" },
+                "InstanceType" : { "Ref" : "ServerInstanceType" },
+                "SecurityGroups" : [ { "Ref" : "ServerSecurityGroup" } ],
+                "ImageId" : { "Fn::FindInMap" : [ "Region2Ami", { "Ref" : "AWS::Region" }, "AMI" ] },
+                "IamInstanceProfile" : { "Ref" : "ServerProfile" },
+                "UserData" : { "Fn::Base64" : { "Fn::Join" : [ "", [
+                    "#!/bin/bash", "\n",
+                    "yum update -y", "\n",
+                    "cd /opt", "\n",
+                    "wget https://github.com/yupeng820921/aws_customer_life_cycle/archive/master.zip",
+                    " 2>&1", "\n",
+                    "unzip master.zip", "\n",
+                    "cd aws_customer_life_cycle-master", "\n",
+                    "./setup.sh",
+                    " ", { "Ref" : "DataDb" },
+					" ", { "Ref" : "MetadataDb" },
+                    " ", { "Ref" : "AWS::Region" },
+                    " > /tmp/setup.log 2>&1", "\n",
+                    "/opt/aws/bin/cfn-signal -e 0 -r \"server setup complete\" '", { "Ref" : "ServerWaitHandle" }, "'\n"
+                    ] ] }
+                }
+            }
+        },
+
+        "ServerWaitHandle" : {
+            "Type" : "AWS::CloudFormation::WaitConditionHandle"
+        },
+
+        "ServerWaitCondition" : {
+            "Type" : "AWS::CloudFormation::WaitCondition",
+            "DependsOn" : "ServerInstance",
+            "Properties" : {
+                "Handle" : { "Ref" : "ServerWaitHandle"},
+                "Timeout" : "1200"
+            }
+        }
+    },
+
+    "Outputs" : {
+        "ServerAddress" : {
+            "Description" : "server address",
+            "Value" : {
+                "Fn::GetAtt" : [ "ServerInstance", "PublicIp" ]
+            }
+        }
+    }
+}
