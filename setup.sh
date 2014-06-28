@@ -38,6 +38,8 @@ touch /tmp/stderr
 mkdir upload
 mkdir job
 
+aws dynamodb put-item --table-name $metadata_db_name --item '{"account_id":{"S":"0"},"status":{"S":"unlock"}}' --region $region
+
 service nginx start
 chkconfig nginx on
 
@@ -51,5 +53,4 @@ cmd="cd /opt/aws_customer_life_cycle-master; uwsgi --socket 127.0.0.1:3031 --wsg
 echo "$cmd" >> /etc/rc.local
 echo "$cmd" > /tmp/run.sh
 bash /tmp/run.sh
-
 
