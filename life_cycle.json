@@ -39,39 +39,57 @@
         "RegionMap" : {
             "us-east-1" : {
                 "AMI" : "ami-fb8e9292",
-                "principal" : "ec2.amazonaws.com"
+                "principal" : "ec2.amazonaws.com",
+                "arn" : "aws",
+                "name" : "Name"
             },
             "us-west-2" : {
                 "AMI" : "ami-043a5034",
-                "principal" : "ec2.amazonaws.com"
+                "principal" : "ec2.amazonaws.com",
+                "arn" : "aws",
+                "name" : "Name"
             },
             "us-west-1" : {
                 "AMI" : "ami-7aba833f",
-                "principal" : "ec2.amazonaws.com"
+                "principal" : "ec2.amazonaws.com",
+                "arn" : "aws",
+                "name" : "Name"
             },
             "eu-west-1" : {
                 "AMI" : "ami-2918e35e",
-                "principal" : "ec2.amazonaws.com"
+                "principal" : "ec2.amazonaws.com",
+                "arn" : "aws",
+                "name" : "Name"
             },
             "ap-southeast-1" : {
                 "AMI" : "ami-b40d5ee6",
-                "principal" : "ec2.amazonaws.com"
+                "principal" : "ec2.amazonaws.com",
+                "arn" : "aws",
+                "name" : "Name"
             },
             "ap-northeast-1" : {
                 "AMI" : "ami-c9562fc8",
-                "principal" : "ec2.amazonaws.com"
+                "principal" : "ec2.amazonaws.com",
+                "arn" : "aws",
+                "name" : "Name"
             },
             "ap-southeast-2" : {
                 "AMI" : "ami-3b4bd301",
-                "principal" : "ec2.amazonaws.com"
+                "principal" : "ec2.amazonaws.com",
+                "arn" : "aws",
+                "name" : "Name"
             },
             "sa-east-1" : {
                 "AMI" : "ami-215dff3c",
-                "principal" : "ec2.amazonaws.com"
+                "principal" : "ec2.amazonaws.com",
+                "arn" : "aws",
+                "name" : "Name"
             },
             "cn-north-1" : {
                 "AMI" : "ami-cab82af3",
-                "principal" : "ec2.amazonaws.com.cn"
+                "principal" : "ec2.amazonaws.com.cn",
+                "arn" : "aws-cn",
+                "name" : "Name"
             }
         }
     },
@@ -160,7 +178,9 @@
                                 "Effect" : "Allow",
                                 "Action" : "dynamodb:*",
                                 "Resource" : { "Fn::Join" : [ "", [
-                                    "arn:aws-cn:dynamodb:",
+                                    "arn:",
+                                    { "Fn::FindInMap" : [ "RegionMap", { "Ref" : "AWS::Region" }, "arn" ] },
+                                    ":dynamodb:",
                                     { "Ref" : "AWS::Region" },
                                     ":*:table/",
                                     { "Ref" : "DataDb" }
@@ -170,7 +190,9 @@
                                 "Effect" : "Allow",
                                 "Action" : "dynamodb:*",
                                 "Resource" : { "Fn::Join" : [ "", [
-                                    "arn:aws-cn:dynamodb:",
+                                    "arn:",
+                                    { "Fn::FindInMap" : [ "RegionMap", { "Ref" : "AWS::Region" }, "arn" ] },
+                                    ":dynamodb:",
                                     { "Ref" : "AWS::Region" },
                                     ":*:table/",
                                     { "Ref" : "DataDb" },
@@ -181,7 +203,9 @@
                                 "Effect" : "Allow",
                                 "Action" : "dynamodb:*",
                                 "Resource" : { "Fn::Join" : [ "", [
-                                    "arn:aws-cn:dynamodb:",
+                                    "arn:",
+                                    { "Fn::FindInMap" : [ "RegionMap", { "Ref" : "AWS::Region" }, "arn" ] },
+                                    ":dynamodb:",
                                     { "Ref" : "AWS::Region" },
                                     ":*:table/",
                                     { "Ref" : "MetadataDb" }
@@ -191,7 +215,9 @@
                                 "Effect" : "Allow",
                                 "Action" : "dynamodb:*",
                                 "Resource" : { "Fn::Join" : [ "", [
-                                    "arn:aws-cn:dynamodb:",
+                                    "arn:",
+                                    { "Fn::FindInMap" : [ "RegionMap", { "Ref" : "AWS::Region" }, "arn" ] },
+                                    ":dynamodb:",
                                     { "Ref" : "AWS::Region" },
                                     ":*:table/",
                                     { "Ref" : "MetadataDb" },
@@ -223,6 +249,10 @@
                 "SecurityGroups" : [ { "Ref" : "ServerSecurityGroup" } ],
                 "ImageId" : { "Fn::FindInMap" : [ "RegionMap", { "Ref" : "AWS::Region" }, "AMI" ] },
                 "IamInstanceProfile" : { "Ref" : "ServerProfile" },
+                "Tags" : [ {
+                    "Key" : { "Fn::FindInMap" : [ "RegionMap", { "Ref" : "AWS::Region" }, "name" ] },
+                    "Value" : { "Ref" : "AWS::StackName" }
+                } ],
                 "UserData" : { "Fn::Base64" : { "Fn::Join" : [ "", [
                     "#!/bin/bash", "\n",
                     "yum update -y", "\n",
@@ -259,9 +289,10 @@
     "Outputs" : {
         "ServerAddress" : {
             "Description" : "server address",
-            "Value" : {
-                "Fn::GetAtt" : [ "ServerInstance", "PublicIp" ]
-            }
+            "Value" : { "Fn::Join" : [ "", [
+                "https://",
+                { "Fn::GetAtt" : [ "ServerInstance", "PublicIp" ] }
+            ] ] }
         }
     }
 }
