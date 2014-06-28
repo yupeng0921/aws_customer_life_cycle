@@ -501,13 +501,20 @@ def interpret(node):
             return itp
         elif node.value == 'AND':
             itp1 = interpret(node.subnodes[0])
-            itp2 = interpret(node.subnodes[1])
             v1 = int(itp1.value)
+            if not v1:
+                itp.value = 0
+                return itp
+            itp2 = interpret(node.subnodes[1])
             v2 = int(itp2.value)
             itp.value = v1 and v2
             return itp
         elif node.value == 'OR':
             itp1 = interpret(node.subnodes[0])
+            v1 = int(itp1.value)
+            if v1:
+                itp.value = 1
+                return itp
             itp2 = interpret(node.subnodes[1])
             v1 = int(itp1.value)
             v2 = int(itp2.value)
