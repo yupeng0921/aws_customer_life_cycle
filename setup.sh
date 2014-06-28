@@ -2,6 +2,14 @@
 
 # echo $* > /tmp/setup.out
 
+data_db_name=$1
+metadata_db_name=$2
+region=$3
+
+sed -i "s/replace_by_data_db_name/$data_db_name/g" conf.yaml
+sed -i "s/replace_by_metadata_db_name/$metadata_db_name/g" conf.yaml
+sed -i "s/replace_by_region/$region/g" conf.yaml
+
 yum install -y nginx
 yum install -y python-pip
 yum install -y gcc
