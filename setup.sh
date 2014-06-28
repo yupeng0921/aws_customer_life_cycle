@@ -32,6 +32,9 @@ mkdir -p $ssl_conf_dir
 cp server.crt $ssl_conf_dir
 cp server.key $ssl_conf_dir
 
+touch /tmp/stdin
+touch /tmp/stdout
+touch /tmp/stderr
 service nginx start
 chkconfig nginx on
 
