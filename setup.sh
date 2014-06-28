@@ -35,6 +35,9 @@ cp server.key $ssl_conf_dir
 touch /tmp/stdin
 touch /tmp/stdout
 touch /tmp/stderr
+mkdir upload
+mkdir job
+
 service nginx start
 chkconfig nginx on
 

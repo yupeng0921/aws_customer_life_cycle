@@ -8,7 +8,7 @@ log_file: $__log
 interpret_debug_flag: info
 daemon_log_file: /tmp/life_cycle_daemon.log
 daemon_debug_flag: info
-job_directory: /home/ec2-user/life_cycle/1/job
+job_directory: /opt/aws_customer_life_cycle-master/job
 script_name: run.q
 schedule_name: schedule
 table_lock_id: "0"
