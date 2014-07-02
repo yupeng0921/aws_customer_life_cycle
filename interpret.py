@@ -118,6 +118,17 @@ def write_log(msg):
 
 func1_dict['log'] = write_log
 
+def get_file_to_array(file_name):
+    base_dir = '%s/%s' % (context['job_directory'], context['current_job'])
+    full_file_path = '%s/%s' % (base_dir, file_name)
+    ret_array = []
+    with codecs.open(full_file_path, 'r', 'utf-8') as f:
+        for eachline in f:
+            ret_array.append(eachline.strip())
+    return ('array', ret_array)
+
+func1_dict['get_file_to_array'] = get_file_to_array
+
 func2_dict = {}
 def add_to_array(array, item):
     if array in variables:
@@ -177,6 +188,33 @@ def write_to_file(file_name, content, option):
     return ('number', 0)
 
 func3_dict['write_to_file'] = write_to_file
+
+def set_metadata_by_account(account_id, metadata_name, value):
+    metadata_table = context[u'metadata_table']
+    if len(metadata_name) <= 2 or metadata_name[0:2] != '$$':
+        msg = 'invalide metadata name, account_id: %s metadata_name: %s' % \
+            (account_name, metadata_name)
+        raise Exception(msg)
+    try:
+        item = metadata_table.get_item(account_id=account_id)
+    except Exception, e:
+        msg = 'get metadata for account failed, %s %s' % \
+            (account_id, unicode(e))
+        raise Exception(msg)
+    metadata_name = metadata_name[2:]
+    item[metadata_name] = value
+    try:
+        ret = item.partial_save()
+    except Exception, e:
+        msg = 'set metadate by account failed, account_id: %s metadata_name: %s value: %s %s' % \
+            (account_id, metadata_name, value, unicode(e))
+        raise Exception(msg)
+    if not ret:
+        msg = 'set metadate by account failed, account_id: %s metadata_name: %s value: %s' % \
+            (account_id, metadata_name, value)
+        raise Exception(msg)
+    return ('number', 0)
+func3_dict['set_metadata_by_account'] = set_metadata_by_account
 
 func5_dict = {}
 
@@ -332,11 +370,11 @@ def set_metadata(name, value):
     try:
         ret = metadata.partial_save()
     except Exception, e:
-        msg = 'set metadat failed, account_id: %s name: %s %s' % (account_id, name, unicode(e))
+        msg = 'set metadata failed, account_id: %s name: %s %s' % (account_id, name, unicode(e))
         raise Exception(msg)
     else:
         if not ret:
-            msg = 'set metadat failed, account_id: %s name: %s' % (account_id, name)
+            msg = 'set metadata failed, account_id: %s name: %s' % (account_id, name)
             raise Exception(msg)
 
 class Node():
@@ -534,6 +572,7 @@ def interpret(node):
             func = func1_dict[func_name]
             itp1 = interpret(node.subnodes[1])
             (itp.itptype, itp.value) = func(itp1.value)
+            return itp
         elif node.value == 'fun2':
             func_name = node.subnodes[0][1:]
             if func_name not in func2_dict:
@@ -823,6 +862,7 @@ def do_job(current_job):
     context[u'current_job'] = current_job
     context[u'script_name'] = script_name
     context[u'data_table'] = data_table
+    context[u'metadata_table'] = metadata_table
     context[u'stage'] = u'begin'
     yacc.parse(begin)
     context[u'stage'] = u'body'
