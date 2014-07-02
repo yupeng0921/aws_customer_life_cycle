@@ -68,7 +68,7 @@ def t_NUMBER(t):
     return t
 
 def t_STRING(t):
-    r'\"[a-zA-Z0-9_\/\.@\-\: ]*\"'
+    r'\"[a-zA-Z0-9_\/\$\.@\-\: ]*\"'
     t.value = t.value[1:-1]
     return t
 
@@ -329,7 +329,7 @@ def get_data_from_db(index, name):
 
 def get_buildin_variable(name):
     if context['stage'] != 'body':
-        raise Exception('can only get buildin variable in body state')
+        raise Exception('can only get buildin variable in body state: %s' % name)
     metadata = context['metadata']
     if name == '$N':
         value = metadata['count']
