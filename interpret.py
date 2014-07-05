@@ -357,18 +357,12 @@ func5_dict['send_mail'] = send_mail
 
 def get_data_from_db(index, name):
     metadata = context['metadata']
-    if index < 0:
+    if index <= 0:
         raise Exception('invalide index: %d' % index)
-    items = context['items']
     fetched_items = context['fetched_items']
-    while len(fetched_items) < (index+1):
-        try:
-            item = items.next()
-        except Exception, e:
-            raise Exception('no enough data %s %d' % (metadata['account_id'], index))
-        fetched_items.append(item)
-
-    item = fetched_items[index]
+    if index > len(fetched_items):
+        raise Exception('index out of range, index=%d, items=%d' % (index, len(fetched_items)))
+    item = fetched_items[index-1]
     if name in item:
         return item[name]
     else:
@@ -379,7 +373,7 @@ def get_buildin_variable(name):
         raise Exception('can only get buildin variable in body state: %s' % name)
     metadata = context['metadata']
     if name == '$N':
-        value = metadata['count']
+        value = context['count']
         return ('number', value)
     elif name == '$account_id':
         value = metadata['account_id']
@@ -399,7 +393,6 @@ def get_buildin_variable(name):
             index = int(names[0])
         except Exception, e:
             raise Exception('buildin name is not number: %s' % name)
-        index -= 1
         value = get_data_from_db(index, names[1])
         return ('string', value)
 
@@ -882,7 +875,7 @@ interpret_debug_flag = conf[u'interpret_debug_flag']
 job_directory = conf[u'job_directory']
 script_name = conf[u'script_name']
 table_lock_id = conf[u'table_lock_id']
-
+interpret_max_N = conf[u'interpret_max_N']
 
 p_begin = re.compile(r'begin\s*\{')
 p_body = re.compile(r'\}\s*body\s*\{')
@@ -950,11 +943,16 @@ def do_job(current_job):
             if account_id == table_lock_id:
                 continue
             logging.debug(u'parsing account: %s' % account_id)
-            items = data_table.query(account_id__eq=account_id, reverse=False)
-            fetched_items = []
+            items = data_table.query(account_id__eq=account_id, limit=interpret_max_N, reverse=False)
             context[u'metadata'] = metadata
             context[u'items'] = items
             context[u'fetched_items'] = []
+            fetched_items = context[u'fetched_items']
+            count = 0
+            for item in items:
+                fetched_items.append(item)
+                count += 1
+            context[u'count'] = count
             yacc.parse(body)
     context[u'stage'] = u'end'
     yacc.parse(end)

@@ -63,39 +63,22 @@ def insert_to_table(insert_filename, overwrite):
     conn = boto.dynamodb2.connect_to_region(region)
     data_table = Table(data_db_name, connection=conn)
     metadata_table = Table(metadata_db_name, connection=conn)
-    lock_item = metadata_table.get_item(account_id=table_lock_id)
-    if not lock_item:
-        return u'no lock, check metadata db'
-    if u'status' not in lock_item:
-        return u'invalid lock, check metadata db'
-    if lock_item[u'status'] != u'unlock':
-        return u'table is locked, try it later'
-    lock_item[u'status'] = u'lock'
-    try:
-        ret = lock_item.save(overwrite=False)
-    except Exception, e:
-        return u'lock table failed, try it later'
-    if not ret:
-        return u'lock table failed, try it later'
     f = open(insert_filename, u'r')
+    error_info = {}
     line_number = 0
-    error_lines_no_overwrite = []
-    error_lines_overwrite = []
     for eachline in f:
         line_number += 1
         eachline = eachline.strip()
         try:
             (account_id, date, email, revenue) = eachline.split(u',')
         except Exception, e:
-            logging.info(unicode(e))
-            error_lines_no_overwrite.append(line_number)
+            error_info[line_number] = unicode(e)
             continue
         try:
             date = change_date_to_epoch_number(date)
         except Exception, e:
             msg = 'convert date failed, %s %s' % (date, unicode(e))
-            logging.error(msg)
-            error_lines_no_overwrite.append(line_number)
+            error_info[line_number] = msg
             continue
 
         data = {u'account_id': account_id,
@@ -105,65 +88,16 @@ def insert_to_table(insert_filename, overwrite):
         try:
             data_table.put_item(data=data, overwrite=overwrite)
         except Exception, e:
-            logging.error(unicode(e))
-            error_lines_no_overwrite.append(line_number)
+            error_info[line_number] = unicode(e)
             continue
 
-        data = {u'account_id': account_id, u'count': 0}
         try:
-            metadata_table.put_item(data=data, overwrite=False)
+            metadata_table.put_item(data={u'account_id':account_id}, overwrite=False)
         except Exception, e:
             pass
 
-        try:
-            item = metadata_table.get_item(account_id=account_id)
-        except Exception, e:
-            logging.error(unicode(e))
-            error_lines_overwrite.append(line_number)
-            continue
-
-        if not item:
-            logging.error(u'no metadata for %s %d' % (account_id, line_number))
-            error_lines_overwrite.append(line_number)
-            continue
-
-        if u'count' not in item:
-            logging.error(u'invalid metadata %s %d' % (account_id, line_number))
-            error_lines_overwrite.append(line_number)
-            continue
-
-        item[u'count'] += 1
-        try:
-            ret = item.partial_save()
-        except Exception, e:
-            msg = u'partial_save failed, account_id: %s %s' % (account_id, unicode(e))
-            logging.error(msg)
-            error_lines_overwrite.append(line_number)
-            continue
-        else:
-            if not ret:
-                msg = u'partial_save failed, account_id: %s' % account_id
-                logging.error(msg)
-                error_lines_overwrite.append(line_number)
-                continue
     f.close()
-    ret_dict = {}
-    lock_item[u'status'] = 'unlock'
-    try:
-        ret = lock_item.save(overwrite=False)
-    except Exception, e:
-        msg = u'unlock failed %s' % unicode(e)
-        logging.error(msg)
-        ret_dict[u'lock_msg'] = msg
-    else:
-        if not ret:
-            msg = u'unlock failed'
-            logging.error(msg)
-            ret_dict[u'lock_msg'] = msg
-    if error_lines_no_overwrite or error_lines_overwrite:
-        ret_dict[u'no_overwrite_error'] = error_lines_no_overwrite
-        ret_dict[u'overwrite_error'] = error_lines_overwrite
-    return ret_dict
+    return error_info
 
 @app.route(u'/insert', methods=[u'GET', u'POST'])
 def insert():
@@ -198,23 +132,9 @@ def delete_from_table(delete_filename):
     conn = boto.dynamodb2.connect_to_region(region)
     data_table = Table(data_db_name, connection=conn)
     metadata_table = Table(metadata_db_name, connection=conn)
-    lock_item = metadata_table.get_item(account_id=table_lock_id)
-    if not lock_item:
-        return u'no lock, check metadata db'
-    if u'status' not in lock_item:
-        return u'invalid lock, check metadata db'
-    if lock_item[u'status'] != u'unlock':
-        return u'table is locked, try it later'
-    lock_item[u'status'] = u'lock'
-    try:
-        ret = lock_item.save(overwrite=False)
-    except Exception, e:
-        return u'lock table failed, try it later'
-    if not ret:
-        return u'lock table failed, try it later'
     f = open(delete_filename, u'r')
     line_number = 0
-    error_lines = []
+    error_info = {}
     for eachline in f:
         line_number += 1
         eachline = eachline.strip()
@@ -232,77 +152,13 @@ def delete_from_table(delete_filename):
             raise Exception(msg)
 
         try:
-            ret = data_table.get_item(account_id=account_id, date=date)
-        except Exception, e:
-            msg = 'get_item failed %s' % unicode(e)
-            logging.error(msg)
-            error_lines.append(line_number)
-            continue
-        else:
-            if not ret:
-                msg = 'get_item failed %s' % unicode(e)
-                logging.error(msg)
-                error_lines.append(line_number)
-                continue
-
-        try:
             ret = data_table.delete_item(account_id=account_id, date=date)
         except Exception, e:
-            logging.error(unicode(e))
-            error_lines.append(line_number)
-            continue
-        else:
-            if not ret:
-                logging.error(u'delete failed: account_id=%s date=%s' % (account_id, date))
-                error_lines.append(line_number)
-
-        try:
-            item = metadata_table.get_item(account_id=account_id)
-        except Exception, e:
-            logging.error(unicode(e))
-            error_lines.append(line_number)
+            error_info[line_number] = unicode(e)
             continue
 
-        if not item:
-            logging.error(u'no metadata for %s %d' % (account_id, line_number))
-            error_lines.append(line_number)
-            continue
-
-        if u'count' not in item:
-            logging.error(u'invalid metadata %s %d' % (account_id, line_number))
-            error_lines.append((line_number))
-            continue
-
-        item[u'count'] -= 1
-        try:
-            ret = item.partial_save()
-        except Exception, e:
-            msg = u'partial_save failed, account_id: %s %s' % (account_id, unicode(e))
-            logging.error(msg)
-            error_lines.append(line_number)
-            continue
-        else:
-            if not ret:
-                msg = u'partial_save failed, account_id: %s' % (account_id)
-                logging.error(msg)
-                error_lines.append(line_number)
     f.close()
-    ret_dict = {}
-    lock_item[u'status'] = 'unlock'
-    try:
-        ret = lock_item.save(overwrite=False)
-    except Exception, e:
-        msg = u'unlock failed %s' % unicode(e)
-        logging.error(msg)
-        ret_dict[u'lock_msg'] = msg
-    else:
-        if not ret:
-            msg = u'unlock failed'
-            logging.error(msg)
-            ret_dict[u'lock_msg'] = msg
-    if error_lines:
-        ret_dict[u'error_lines'] = error_lines
-    return ret_dict
+    return error_info
 
 @app.route(u'/delete', methods=[u'GET', u'POST'])
 def delete():
@@ -320,6 +176,7 @@ def delete():
         except Exception, e:
             os.remove(delete_filename)
             return unicode(e)
+        os.remove(delete_filename)
         if ret:
             return unicode(ret)
         else:

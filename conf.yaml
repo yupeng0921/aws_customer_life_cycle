@@ -6,6 +6,7 @@ server_log_file: /tmp/life_cycle_server.log
 server_debug_flag: info
 log_file: $__log
 interpret_debug_flag: info
+interpret_max_N: 10
 daemon_log_file: /tmp/life_cycle_daemon.log
 daemon_debug_flag: info
 job_directory: /opt/aws_customer_life_cycle-master/job
