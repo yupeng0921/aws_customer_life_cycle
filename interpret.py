@@ -73,7 +73,7 @@ def t_STRING(t):
     return t
 
 def t_VARIABLE(t):
-    r'[a-zA-Z_][a-zA-Z0-9_]*'
+    r'[a-zA-Z_][a-zA-Z0-9_\.]*'
     t.type = reserved.get(t.value,'VARIABLE')
     return t
 
@@ -214,7 +214,54 @@ def set_metadata_by_account(account_id, metadata_name, value):
             (account_id, metadata_name, value)
         raise Exception(msg)
     return ('number', 0)
+
 func3_dict['set_metadata_by_account'] = set_metadata_by_account
+
+func4_dict = {}
+def get_item_by_date(date, flag, count, unit):
+    if not flag in ('before', 'after'):
+        msg = 'flag should be before or after, not %s' % flag
+        raise Exception(msg)
+    if not unit in ('month', 'week', 'day', 'hour', 'minute', 'second'):
+        msg = 'flag should be month, week, day, hour, minute or second, not %s' % unit
+        raise Exception(msg)
+    try:
+        count = int(count)
+    except Exception, e:
+        msg = 'transfer count to int failed, %s %s' % (count, e)
+        raise Exception(msg)
+    if unit == 'second':
+        factor = 1
+    elif unit == 'minute':
+        factor = 60
+    elif unit == 'hour':
+        factor = 3600
+    elif unit == 'day':
+        factor = 3600 * 24
+    elif unit == 'week':
+        factor = 3600 * 24 * 7
+    elif unit == 'month':
+        factor = 3600 * 24 * 30
+    else:
+        raise Exception('should not be here, unit: %s' % unit)
+    account_id = context['metadata']['account_id']
+    data_table = context['data_table']
+    if flag == 'before':
+        date = date - count * factor
+        items = data_table.query(account_id__eq=account_id, date__lte=date, limit=1, reverse=False)
+    elif flag == 'after':
+        date = date + count * factor
+        items = data_table.query(account_id__eq=account_id, date__gte=date, limit=1, reverse=True)
+    result = None
+    for item in items:
+        result = item
+        break
+    if not result:
+        msg = 'item not found: %s %s %s %s' % (date, flag, count, unit)
+        raise Exception(msg)
+    return ('dict', result)
+
+func4_dict['get_item_by_date'] = get_item_by_date
 
 func5_dict = {}
 
@@ -419,16 +466,31 @@ def interpret(node):
         itp.value = node.value
         return itp
     elif node.nodetype == 'variable':
-        if node.value in variables:
-            itp.value = variables[node.value]
+        names = node.value.split('.')
+        name = names[0]
+        if name in variables:
+            if len(names) == 1:
+                itp.value = variables[name]
+                if type(itp.value) is types.ListType:
+                    itp.value = itp.value[:]
+                    itp.itptype = 'array'
+                elif type(itp.value) is types.DictType:
+                    itp.value = itp.value.copy()
+                    itp.itptype = 'dict'
+            elif len(names) == 2:
+                attr = names[1]
+                itp.value = unicode(variables[name][attr])
+            else:
+                raise Exception('invalid variable: %s' % node.value)
         else:
-            raise Exception('uninit variable: %s' % node.value)
+            raise Exception('unknown variable: %s' % name)
         return itp
     elif node.nodetype == 'buildin_variable':
         v = node.value
         (itp.itptype, itp.value) = get_buildin_variable(v)
         return itp
     elif node.nodetype == 'empty_list':
+        itp.itptype = 'array'
         itp.value = []
         return itp
     elif node.nodetype == 'opr':
@@ -436,9 +498,12 @@ def interpret(node):
             itp1 = interpret(node.subnodes[1])
             if type(itp1.value) is types.ListType:
                 value = itp1.value[:]
+            elif type(itp1.value) is types.DictType:
+                value = itp1.value.copy()
             else:
                 value = itp1.value
             variables[node.subnodes[0]] = value
+            itp.itptype = itp1.itptype
             itp.value = value
             return itp
         elif node.value == u'EQUAL_BUILDIN':
@@ -595,6 +660,17 @@ def interpret(node):
             itp2 = interpret(node.subnodes[2])
             itp3 = interpret(node.subnodes[3])
             (itp.itptype, itp.value) = func(itp1.value, itp2.value, itp3.value)
+            return itp
+        elif node.value == 'fun4':
+            func_name = node.subnodes[0][1:]
+            if func_name not in func4_dict:
+                raise Exception('no such function or funchtion is not four parameters: %s' % func_name)
+            func = func4_dict[func_name]
+            itp1 = interpret(node.subnodes[1])
+            itp2 = interpret(node.subnodes[2])
+            itp3 = interpret(node.subnodes[3])
+            itp4 = interpret(node.subnodes[4])
+            (itp.itptype, itp.value) = func(itp1.value, itp2.value, itp3.value, itp4.value)
             return itp
         elif node.value == 'fun5':
             func_name = node.subnodes[0][1:]

@@ -4,6 +4,8 @@ import os
 import time
 import zipfile
 import sqlite3
+import datetime
+import time
 import yaml
 import logging
 import shutil
@@ -48,6 +50,14 @@ app = Flask(__name__)
 def index():
     return render_template(u'index.html')
 
+# assume the input is such format 2013/12/25
+def change_date_to_epoch_number(date):
+    date = date.split('/')
+    if len(date) != 3:
+        raise Exception('invalid date format')
+    date = int(time.mktime(datetime.datetime(int(date[0]),int(date[1]),int(date[2])).timetuple()))
+    return date
+
 def insert_to_table(insert_filename, overwrite):
     logging.info(u'insert_filename: %s overwrite: %s' % (insert_filename, overwrite))
     conn = boto.dynamodb2.connect_to_region(region)
@@ -80,6 +90,14 @@ def insert_to_table(insert_filename, overwrite):
             logging.info(unicode(e))
             error_lines_no_overwrite.append(line_number)
             continue
+        try:
+            date = change_date_to_epoch_number(date)
+        except Exception, e:
+            msg = 'convert date failed, %s %s' % (date, unicode(e))
+            logging.error(msg)
+            error_lines_no_overwrite.append(line_number)
+            continue
+
         data = {u'account_id': account_id,
                 u'date': date,
                 u'email': email,
@@ -168,6 +186,7 @@ def insert():
         except Exception, e:
             os.remove(insert_filename)
             return unicode(e)
+        os.remove(insert_filename)
         if ret:
             return unicode(ret)
         else:
@@ -205,6 +224,12 @@ def delete_from_table(delete_filename):
             logging.error(unicode(e))
             error_lines.append(line_number)
             continue
+
+        try:
+            date = change_date_to_epoch_number(date)
+        except Exception, e:
+            msg = 'convert date failed, %s %s' % (date, unicode(e))
+            raise Exception(msg)
 
         try:
             ret = data_table.get_item(account_id=account_id, date=date)
