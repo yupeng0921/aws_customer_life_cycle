@@ -15,9 +15,7 @@ sed -i "s/replace_by_region/$region/g" conf.yaml
 default_login_file_place="/tmp/login_file"
 # sed -i "s/replace_by_login_file/\"$default_login_file_place\"/g" conf.yaml
 
-secret_key=`cat /dev/urandom | sed 's/[^a-zA-Z0-9]//g' | strings -n 5 | head -1`
-echo "aaa $secret_key bbb" > /tmp/a.txt
-
+secret_kye=`date '+%N'`
 sed -i "s/replace_by_secret_key/$secret_key/g" login_file.yaml
 sed -i "s/replace_by_username/$username/g" login_file.yaml
 sed -i "s/replace_by_password/$password/g" login_file.yaml
