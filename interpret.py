@@ -256,10 +256,6 @@ def get_item_by_date(date, flag, count, unit):
     for item in items:
         result = item
         break
-    if not result:
-        result = {'exist': 0}
-    else:
-        result['exist'] = 1
     return ('dict', result)
 
 func4_dict['get_item_by_date'] = get_item_by_date
