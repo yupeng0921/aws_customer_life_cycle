@@ -12,7 +12,7 @@ import shutil
 from crontab import CronTab
 from flask import Flask, request, redirect, url_for, render_template, abort, Response
 from werkzeug import secure_filename
-from flask.ext.login import LoginManager , login_required , UserMixin , login_user
+from flask.ext.login import LoginManager , login_required , UserMixin , login_user, logout_user
 
 import boto
 from boto.dynamodb2.table import Table
@@ -117,6 +117,12 @@ def login():
 <p><input type=submit value=Login>
 </form>
 ''')
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
 
 # assume the input is such format 2013/12/25
 def change_date_to_epoch_number(date):
