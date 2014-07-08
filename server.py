@@ -88,7 +88,7 @@ for user in login_profile['users']:
     new_user = User(username, password, users_repository.next_index())
     users_repository.save_user(new_user)
 
-app.config['SECRET_KEY'] = login_profile['secret_key']
+app.config['SECRET_KEY'] = unicode(login_profile['secret_key'])
 
 @app.route('/', methods=['GET'])
 @login_required
