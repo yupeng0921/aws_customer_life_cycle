@@ -24,3 +24,5 @@ daemon_stderr_path: /tmp/stderr
 daemon_pidfile_path: /tmp/pidfile
 daemon_pidfile_timeout: 5
 daemon_interpret_timeout: 7200
+test_gmail_conf: /tmp/.test_gmail.yaml
+users_file: /tmp/login_file.yaml
