@@ -25,4 +25,4 @@ daemon_pidfile_path: /tmp/pidfile
 daemon_pidfile_timeout: 5
 daemon_interpret_timeout: 7200
 test_gmail_conf: /tmp/.test_gmail.yaml
-login_file: replace_by_login_file
+login_file: /tmp/login_file
