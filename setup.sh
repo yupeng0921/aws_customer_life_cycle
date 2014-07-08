@@ -5,10 +5,22 @@
 data_db_name=$1
 metadata_db_name=$2
 region=$3
+username="$4"
+password="$5"
 
 sed -i "s/replace_by_data_db_name/$data_db_name/g" conf.yaml
 sed -i "s/replace_by_metadata_db_name/$metadata_db_name/g" conf.yaml
 sed -i "s/replace_by_region/$region/g" conf.yaml
+
+default_login_file_place="/tmp/login_file"
+sed -i "s/replace_by_login_file/$default_login_file_place/g" conf.yaml
+
+secret_key=`cat /dev/urandom | sed 's/[^a-zA-Z0-9]//g' | strings -n 5 | head -1`
+sed -i "s/replace_by_secret_key/$secret_key/g" login_file.yaml
+sed -i "s/replace_by_username/$username/g" login_file.yaml
+sed -i "s/replace_by_password/$password/g" login_file.yaml
+
+mv login_file.yaml $default_login_file_place
 
 yum install -y nginx
 yum install -y python-pip

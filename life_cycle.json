@@ -32,6 +32,17 @@
             "Type" : "String",
             "Default" : "m1.small",
             "Description" : "server instance type"
+        },
+        "Username" : {
+            "Type" : "String",
+            "Default" : "admin",
+            "Description" : "the default user for this web set"
+        },
+        "Password" : {
+            "Type" : "String",
+            "NoEcho" : "true",
+            "Description" : "password for the default user",
+            "MinLength" : "3"
         }
     },
 
@@ -265,6 +276,8 @@
                     " ", { "Ref" : "DataDb" },
 					" ", { "Ref" : "MetadataDb" },
                     " ", { "Ref" : "AWS::Region" },
+                    " ", { "Ref" : "Username" },
+                    " ", { "Ref" : "Password" },
                     " > /tmp/setup.log 2>&1", "\n",
                     "/opt/aws/bin/cfn-signal -e 0 -r \"server setup complete\" '", { "Ref" : "ServerWaitHandle" }, "'\n"
                     ] ] }

@@ -1,0 +1,4 @@
+secret_key: replace_by_secret_key
+users:
+  - username: replace_by_username
+    password: replace_by_password
