@@ -507,9 +507,22 @@ def interpret(node):
         elif node.value == 'PLUS':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            v1 = int(itp1.value)
-            v2 = int(itp2.value)
-            itp.value = v1 + v2
+            v1 = None
+            v2 = None
+            try:
+                v1 = int(itp1.value)
+            except Exception, e:
+                pass
+            try:
+                v2 = int(itp2.value)
+            except Exception, e:
+                pass
+            if v1 and v2:
+                itp.itptype = 'number'
+                itp.value = v1 + v2
+            else:
+                itp.itptpe = 'string'
+                itp.value = itp1.value + itp2.value
             return itp
         elif node.value == 'MINUS':
             itp1 = interpret(node.subnodes[0])
