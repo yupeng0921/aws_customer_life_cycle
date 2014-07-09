@@ -5,16 +5,14 @@ import imaplib
 import os
 import yaml
 
-with open('%s/conf.yaml' % os.path.split(os.path.realpath(__file__))[0], 'r') as f:
-    conf = yaml.safe_load(f)
-test_gmail_conf = conf['test_gmail_conf']
-
-with open(test_gmail_conf, 'r') as f:
+current_path = os.path.split(os.path.realpath(__file__))[0]
+config_file_path = os.path.join(current_path, 'test.yaml')
+with open(config_file_path, 'r') as f:
     conf = yaml.safe_load(f)
 
-username = conf['username']
-password = conf['password']
-folder = conf['folder']
+username = conf['gmail_username']
+password = conf['gmail_password']
+folder = conf['gmail_folder']
 
 def get_emails():
     m = imaplib.IMAP4_SSL("imap.gmail.com")

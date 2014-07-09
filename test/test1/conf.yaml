@@ -1,6 +1,0 @@
-aws_access_key_id: 
-aws_secret_access_key: 
-region: us-east-1
-source: penyu@amazon.com
-reply_addresses: penyu@amazon.com
-return_path: penyu@amazon.com
