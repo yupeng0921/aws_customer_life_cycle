@@ -92,6 +92,7 @@ class LifeCycleTestCase(unittest.TestCase):
         time.sleep(5)
         count = 30
         while count > 0:
+            log = None
             try:
                 log = self.get_log(package_name)
                 self.assertTrue('stop job' in log)
@@ -99,6 +100,8 @@ class LifeCycleTestCase(unittest.TestCase):
                 count -= 1
             else:
                 break
+            if log:
+                self.assertTrue('Traceback' not in log)
             time.sleep(3)
         if count == 0:
             log = self.get_log(package_name)
@@ -115,12 +118,13 @@ class LifeCycleTestCase(unittest.TestCase):
             self.assertTrue('test from life cycle' in subject)
             self.assertTrue('your account: 111111111111' in content)
         self.delete_script(package_name)
-    def do_script_2(self):
-        package_name = 'package2'
+    def do_script_1_1(self):
+        package_name = 'package1'
         self.upload_script(package_name, True)
         time.sleep(5)
         count = 30
         while count > 0:
+            log = None
             try:
                 log = self.get_log(package_name)
                 self.assertTrue('stop job' in log)
@@ -128,6 +132,29 @@ class LifeCycleTestCase(unittest.TestCase):
                 count -= 1
             else:
                 break
+            if log:
+                self.assertTrue('Traceback' not in log)
+            time.sleep(3)
+        if count == 0:
+            log = self.get_log(package_name)
+            self.assertTrue('stop job' in log)
+        self.delete_script(package_name)
+    def do_script_2(self):
+        package_name = 'package2'
+        self.upload_script(package_name, True)
+        time.sleep(5)
+        count = 30
+        while count > 0:
+            log = None
+            try:
+                log = self.get_log(package_name)
+                self.assertTrue('stop job' in log)
+            except Exception, e:
+                count -= 1
+            else:
+                break
+            if log:
+                self.assertTrue('Traceback' not in log)
             time.sleep(3)
         if count == 0:
             log = self.get_log(package_name)
@@ -144,6 +171,7 @@ class LifeCycleTestCase(unittest.TestCase):
         time.sleep(5)
         count = 30
         while count > 0:
+            log = None
             try:
                 log = self.get_log(package_name)
                 self.assertTrue('stop job' in log)
@@ -151,6 +179,8 @@ class LifeCycleTestCase(unittest.TestCase):
                 count -= 1
             else:
                 break
+            if log:
+                self.assertTrue('Traceback' not in log)
             time.sleep(3)
         if count == 0:
             log = self.get_log(package_name)
@@ -167,6 +197,7 @@ class LifeCycleTestCase(unittest.TestCase):
         time.sleep(5)
         count = 30
         while count > 0:
+            log = None
             try:
                 log = self.get_log(package_name)
                 self.assertTrue('stop job' in log)
@@ -174,6 +205,8 @@ class LifeCycleTestCase(unittest.TestCase):
                 count -= 1
             else:
                 break
+            if log:
+                self.assertTrue('Traceback' not in log)
             time.sleep(3)
         if count == 0:
             log = self.get_log(package_name)
@@ -208,6 +241,12 @@ class LifeCycleTestCase(unittest.TestCase):
         self.do_insert()
         self.do_script_1()
         self.do_delete()
+        self.do_logout()
+        self.clean_all = True
+    def test_script_1_1(self):
+        self.clean_all = False
+        self.do_login()
+        self.do_script_1_1()
         self.do_logout()
         self.clean_all = True
     def test_script_2(self):
