@@ -112,9 +112,9 @@ def login():
     else:
         return Response('''
 <form actoin="" method="post">
-<p><input type=text name=username>
-<p><input type=password name=password>
-<p><input type=submit value=Login>
+<p><input type=text id=username name=username>
+<p><input type=password id=password name=password>
+<p><input type=submit id=login_submit name=login_submit value=Login>
 </form>
 ''')
 
@@ -279,6 +279,7 @@ def extract_package_and_add_to_cron(package_zip_full_path, run_immediately):
     if package_name_zip[-4:] != '.zip':
         raise Exception('%s is not zip file' % package_name_zip)
     unzip_file(package_zip_full_path, job_directory)
+    os.remove(package_zip_full_path)
     package_name = package_name_zip[0:-4]
     if run_immediately:
         cx = sqlite3.connect(task_db)
@@ -299,9 +300,12 @@ def extract_package_and_add_to_cron(package_zip_full_path, run_immediately):
             raise Exception('submit job failed: %s' % unicode(e))
         cu.close()
         cx.close()
-    schedule_file = '%s/%s/%s' % (job_directory, package_name, schedule_name)
-    with open(schedule_file, 'r') as f:
-        schedule_policy = f.read().strip()
+    try:
+        schedule_file = '%s/%s/%s' % (job_directory, package_name, schedule_name)
+        with open(schedule_file, 'r') as f:
+            schedule_policy = f.read().strip()
+    except Exception, e:
+        return
     command = '%s/%s %s' % (os.path.split(os.path.realpath(__file__))[0], interpret_file, package_name)
     comment = package_name
     cron = CronTab()
@@ -311,7 +315,6 @@ def extract_package_and_add_to_cron(package_zip_full_path, run_immediately):
     if not job.is_valid():
         raise Exception('schedule policy maybe invalide: %s' % schedule_policy)
     cron.write()
-    os.remove(package_zip_full_path)
 
 def delete_package(package_name):
     package_name_zip = '%s.zip' % package_name
@@ -349,7 +352,6 @@ def script():
                 extract_package_and_add_to_cron(download_filename, run_immediately)
             except Exception, e:
                 return unicode(e)
-            
         elif action == 'delete':
             package_name = request.args.get('name')
             delete_package(package_name)

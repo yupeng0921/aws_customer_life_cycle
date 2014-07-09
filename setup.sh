@@ -51,8 +51,6 @@ touch /tmp/stderr
 mkdir upload
 mkdir job
 
-aws dynamodb put-item --table-name $metadata_db_name --item '{"account_id":{"S":"0"},"status":{"S":"unlock"}}' --region $region
-
 service nginx start
 chkconfig nginx on
 

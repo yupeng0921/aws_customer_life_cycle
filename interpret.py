@@ -68,7 +68,7 @@ def t_NUMBER(t):
     return t
 
 def t_STRING(t):
-    r'\"[a-zA-Z0-9_\/\$\.@\-\: ]*\"'
+    r'\"[a-zA-Z0-9_=\/\$\.@\-\: ]*\"'
     t.value = t.value[1:-1]
     return t
 
@@ -209,10 +209,10 @@ def set_metadata_by_account(account_id, metadata_name, value):
         msg = 'set metadate by account failed, account_id: %s metadata_name: %s value: %s %s' % \
             (account_id, metadata_name, value, unicode(e))
         raise Exception(msg)
-    if not ret:
-        msg = 'set metadate by account failed, account_id: %s metadata_name: %s value: %s' % \
-            (account_id, metadata_name, value)
-        raise Exception(msg)
+    # if not ret:
+    #     msg = 'set metadate by account failed, account_id: %s metadata_name: %s value: %s' % \
+    #         (account_id, metadata_name, value)
+    #     raise Exception(msg)
     return ('number', 0)
 
 func3_dict['set_metadata_by_account'] = set_metadata_by_account
@@ -522,7 +522,7 @@ def interpret(node):
                 itp.value = v1 + v2
             else:
                 itp.itptpe = 'string'
-                itp.value = itp1.value + itp2.value
+                itp.value = unicode(itp1.value) + unicode(itp2.value)
             return itp
         elif node.value == 'MINUS':
             itp1 = interpret(node.subnodes[0])

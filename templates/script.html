@@ -16,11 +16,11 @@
 
   <body>
 	<ol class="breadcrumb">
-	  <li><a href="/">home</a></li>
-	  <li><a href="/insert">insert</a></li>
-	  <li><a href="/delete">delete</a></li>
-	  <li><a href="/script">script</a></li>
-	  <li><a href="/logout">logout</a></li>
+	  <li><a id="home_tab" name="home_tab" href="/">home</a></li>
+	  <li><a id="insert_tab" name="insert_tab" href="/insert">insert</a></li>
+	  <li><a id="delete_tab" name="delete_tab" href="/delete">delete</a></li>
+	  <li><a id="script_tab" name="script_tab" href="/script">script</a></li>
+	  <li><a id="logout_tab" name="logout_tab" href="/logout">logout</a></li>
 	</ol>
 
 	<form role="form" action="/script?action=upload" method="post" enctype="multipart/form-data">
@@ -44,14 +44,14 @@
 		<td> {{package.name}} </td>
 		<td> {{package.schedule}} </td>
 		<td>
-		  <a href=/script/{{package.name}}?show=script>script</a>
+		  <a id="{{package.name}}_script" name="{{package.name}}_script" href=/script/{{package.name}}?show=script>script</a>
 		</td>
 		<td>
-		  <a href=/script/{{package.name}}?show=log>log</a>
+		  <a id="{{package.name}}_log" name="{{package.name}}_log" href=/script/{{package.name}}?show=log>log</a>
 		</td>
 		<td>
 		  <form role="form" action="/script?action=delete&name={{package.name}}" method="post" enctype="multipart/form-data">
-			<button type="delete" class="btn btn-default" id="delete_{{package.name}}" name="delete_{{package.name}}">delete</button>
+			<button type="delete" class="btn btn-default" id="{{package.name}}_delete" name="{{package.name}}_delete">delete</button>
 		  </form>
 	  </tr>
 	  {% endfor %}
