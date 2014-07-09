@@ -963,7 +963,8 @@ def do_job(current_job):
                 fetched_items.append(item)
                 count += 1
             context[u'count'] = count
-            yacc.parse(body)
+            if count > 0:
+                yacc.parse(body)
     context[u'stage'] = u'end'
     yacc.parse(end)
     logging.info('stop job: %s' % current_job)
