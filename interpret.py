@@ -948,6 +948,7 @@ def do_job(current_job):
     body = body.strip()
     if body:
         metadatas = metadata_table.scan()
+        parsed_account = 0
         for metadata in metadatas:
             account_id = metadata[u'account_id']
             if account_id == table_lock_id:
@@ -965,6 +966,10 @@ def do_job(current_job):
             context[u'count'] = count
             if count > 0:
                 yacc.parse(body)
+            parsed_account += 1
+            if parsed_account % 100 == 0:
+                logging.info('parsed account: %d' % parsed_account)
+        logging.info('total parsed account: %d' % parsed_account)
     context[u'stage'] = u'end'
     yacc.parse(end)
     logging.info('stop job: %s' % current_job)
