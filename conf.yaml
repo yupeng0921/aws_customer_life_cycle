@@ -26,3 +26,5 @@ daemon_pidfile_timeout: 5
 daemon_interpret_timeout: 7200
 test_gmail_conf: /tmp/.test_gmail.yaml
 login_file: /tmp/login_file
+complaint_queue_name: test3
+max_complaint_count: 100
