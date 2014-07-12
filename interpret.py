@@ -10,6 +10,7 @@ import codecs
 import inspect
 import boto
 import boto.ses
+from sqs_op import complaint_queue, bounce_queue
 from boto.dynamodb2.table import Table
 
 context = {}
@@ -115,8 +116,22 @@ func1_dict = {}
 def write_log(msg):
     logging.info(msg)
     return ('number', 0)
-
 func1_dict['log'] = write_log
+
+def get_complaint(source_address):
+    ret = complaint_queue.get_dests(source_address)
+    return ('array', ret)
+func1_dict['get_complaint'] = get_complaint
+
+def get_bounce(source_address):
+    ret = bounce_queue.get_dests(source_address):
+    return ('array', ret)
+func1_dict['get_bounce'] = get_bounce
+
+def get_bounce(source_address):
+    return bounce_queue.get_dests(source_address)
+
+
 
 def get_file_to_array(file_name):
     base_dir = '%s/%s' % (context['job_directory'], context['current_job'])

@@ -1,7 +1,10 @@
 data_db_name: replace_by_data_db_name
 metadata_db_name: replace_by_metadata_db_name
 region: replace_by_region
-account_id_table: account_id_table
+complaint_queue_name: replace_by_complaint_queue_name
+bounce_queue_name: replace_by_bounce_queue_name
+max_complaint_count: 100
+max_bounce_count: 100
 server_log_file: /tmp/life_cycle_server.log
 server_debug_flag: info
 log_file: $__log
@@ -24,7 +27,4 @@ daemon_stderr_path: /tmp/stderr
 daemon_pidfile_path: /tmp/pidfile
 daemon_pidfile_timeout: 5
 daemon_interpret_timeout: 7200
-test_gmail_conf: /tmp/.test_gmail.yaml
 login_file: /tmp/login_file
-complaint_queue_name: test3
-max_complaint_count: 100
