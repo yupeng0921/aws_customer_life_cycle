@@ -275,6 +275,11 @@
                                 "Effect" : "Allow",
                                 "Action" : "sqs:*",
                                 "Resource" : "*"
+                            },
+                            {
+                                "Effect" : "Allow",
+                                "Action" : "ses:*",
+                                "Resource" : "*"
                             }
                         ]
                     }

@@ -69,7 +69,7 @@ def t_NUMBER(t):
     return t
 
 def t_STRING(t):
-    r'\"[a-zA-Z0-9_=\/\$\.@\-\: ]*\"'
+    r'\"[a-zA-Z0-9_=<>\/\$\.@\-\: ]*\"'
     t.value = t.value[1:-1]
     return t
 
@@ -289,12 +289,15 @@ def send_mail(conf_file, subject_file, body_file, dest_addr, replacements):
     except Exception, e:
         raise Exception('read conf file error: %s %s' % (conf_file, unicode(e)))
 
-    if 'aws_access_key_id' not in conf1:
-        raise Exception('no aws_access_key_id in %s' % conf_file)
-    aws_access_key_id = conf1['aws_access_key_id']
-    if 'aws_secret_access_key' not in conf1:
-        raise Exception('no aws_secret_access_key in %s' % conf_file)
-    aws_secret_access_key = conf1['aws_secret_access_key']
+    if 'aws_access_key_id' in conf1:
+        aws_access_key_id = conf1['aws_access_key_id']
+    else:
+        aws_access_key_id = None
+
+    if 'aws_secret_access_key' in conf1:
+        aws_secret_access_key = conf1['aws_secret_access_key']
+    else:
+        aws_secret_access_key = None
 
     if 'region' not in conf1:
         raise Exception('no region in %s' % conf_file)
@@ -351,7 +354,11 @@ def send_mail(conf_file, subject_file, body_file, dest_addr, replacements):
                                 (body_file, replacement, count))
         count += 1
 
-    conn = boto.ses.connect_to_region(region, aws_access_key_id = aws_access_key_id, aws_secret_access_key = aws_secret_access_key)
+    if aws_access_key_id and aws_secret_access_key:
+        conn = boto.ses.connect_to_region(\
+            region, aws_access_key_id = aws_access_key_id, aws_secret_access_key = aws_secret_access_key)
+    else:
+        conn = boto.ses.connect_to_region(region)
     if format == 'html':
         conn.send_email(source, subject, None, to_addresses, format=format, \
                             reply_addresses=reply_addresses, return_path=return_path, html_body=emailbody)
