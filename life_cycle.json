@@ -28,6 +28,26 @@
 			"Default" : "100",
             "Description" : "dynamodb metadatadb write capacity"
         },
+        "ComplaintRetentionPeriod" : {
+            "Type" : "Number",
+            "Default" : "1209600",
+            "Description" : "default for 14 days"
+        },
+        "ComplaintVisibilityTimeout" : {
+            "Type" : "Number",
+            "Default" : "43200",
+            "Description" : "default 12 hours"
+        },
+        "BounceRetentionPeriod" : {
+            "Type" : "Number",
+            "Default" : "1209600",
+            "Description" : "default for 14 days"
+        },
+        "BounceVisibilityTimeout" : {
+            "Type" : "Number",
+            "Default" : "43200",
+            "Description" : "default 12 hours"
+        },
         "ServerInstanceType" : {
             "Type" : "String",
             "Default" : "m1.small",
@@ -138,6 +158,22 @@
                     "ReadCapacityUnits" : { "Ref" : "MetadataDbReadCapacityUnits" },
                     "WriteCapacityUnits" : { "Ref" : "MetadataDbWriteCapacityUnits" }
                 }
+            }
+        },
+
+        "ComplaintQueue" : {
+            "Type" : "AWS::SQS::Queue",
+            "Properties" : {
+                "MessageRetentionPeriod" : { "Ref" : "ComplaintRetentionPeriod" },
+                "VisibilityTimeout" : { "Ref" : "ComplaintVisibilityTimeout" }
+            }
+        },
+
+        "BounceQueue" : {
+            "Type" : "AWS::SQS::Queue",
+            "Properties" : {
+                "MessageRetentionPeriod" : { "Ref" : "BounceRetentionPeriod" },
+                "VisibilityTimeout" : { "Ref" : "BounceVisibilityTimeout" }
             }
         },
 
@@ -275,6 +311,8 @@
                     "./setup.sh",
                     " ", { "Ref" : "DataDb" },
 					" ", { "Ref" : "MetadataDb" },
+                    " " ,{ "Fn::GetAtt" : [ "ComplaintQueue", "QueueName" ] },
+					" " ,{ "Fn::GetAtt" : [ "BounceQueue", "QueueName" ] },
                     " ", { "Ref" : "AWS::Region" },
                     " ", { "Ref" : "Username" },
                     " ", { "Ref" : "Password" },

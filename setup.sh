@@ -4,12 +4,16 @@ echo $* > /tmp/setup.out
 
 data_db_name=$1
 metadata_db_name=$2
-region=$3
-username="$4"
-password="$5"
+complaint_queue_name=$3
+bounce_queue_name=$4
+region=$5
+username="$6"
+password="$7"
 
 sed -i "s/replace_by_data_db_name/$data_db_name/g" conf.yaml
 sed -i "s/replace_by_metadata_db_name/$metadata_db_name/g" conf.yaml
+sed -i "s/replace_by_complaint_queue_name/$complaint_queue_name/g" conf.yaml
+sed -i "s/replace_by_bounce_queue_name/$bounce_queue_name/g" conf.yaml
 sed -i "s/replace_by_region/$region/g" conf.yaml
 
 default_login_file_place="/tmp/login_file"
