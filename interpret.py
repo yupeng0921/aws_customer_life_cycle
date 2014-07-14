@@ -114,24 +114,19 @@ variables = {}
 
 func1_dict = {}
 def write_log(msg):
-    logging.info(msg)
+    logging.info(unicode(msg))
     return ('number', 0)
 func1_dict['log'] = write_log
 
-def get_complaint(source_address):
+def get_complaints(source_address):
     ret = complaint_queue.get_dests(source_address)
     return ('array', ret)
-func1_dict['get_complaint'] = get_complaint
+func1_dict['get_complaints'] = get_complaints
 
-def get_bounce(source_address):
-    ret = bounce_queue.get_dests(source_address):
+def get_bounces(source_address):
+    ret = bounce_queue.get_dests(source_address)
     return ('array', ret)
-func1_dict['get_bounce'] = get_bounce
-
-def get_bounce(source_address):
-    return bounce_queue.get_dests(source_address)
-
-
+func1_dict['get_bounces'] = get_bounces
 
 def get_file_to_array(file_name):
     base_dir = '%s/%s' % (context['job_directory'], context['current_job'])
@@ -987,6 +982,8 @@ def do_job(current_job):
         logging.info('total parsed account: %d' % parsed_account)
     context[u'stage'] = u'end'
     yacc.parse(end)
+    complaint_queue.delete_messages()
+    bounce_queue.delete_messages()
     logging.info('stop job: %s' % current_job)
 
 if __name__ == '__main__':

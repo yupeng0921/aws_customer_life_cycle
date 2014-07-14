@@ -17,7 +17,7 @@ max_complaint_count = conf['max_complaint_count']
 bounce_queue_name = conf['bounce_queue_name']
 max_bounce_count = conf['max_bounce_count']
 
-def Queue():
+class Queue():
     used = []
     def __init__(self, queue_name, region, max_count, num_messages=10):
         conn = boto.sqs.connect_to_region(region)
@@ -26,7 +26,7 @@ def Queue():
         self.queue = queue
         self.max_count = max_count
         self.num_messages = num_messages
-    def get_dests(source_address):
+    def get_dests(self, source_address):
         ret_list = []
         unused_list = []
         rs = self.queue.get_messages(num_messages=self.num_messages)
@@ -40,11 +40,12 @@ def Queue():
                 try:
                     source, dests = self._exact_addr_from_body(body)
                 except Exception, e:
-                    logging.warning('parse body failed %s %s' % (body, unicode(e)))
+                    logging.warning('parse body failed body: %s' % body)
+                    logging.warning('parse body failed err: %s' % unicode(e))
                     unused_list.append((message, 0))
                     continue
                 if source == source_address:
-                    for diest in dests:
+                    for dest in dests:
                         ret_list.append(dest)
                     self.used.append(message)
                 else:
@@ -55,7 +56,7 @@ def Queue():
         return ret_list
     def _exact_addr_from_body(self, body):
         raise Exception('child should overwrite this method')
-    def delete_message(self):
+    def delete_messages(self):
         if self.used:
             self.queue.delete_message_batch(self.used)
 
@@ -72,13 +73,12 @@ class ComplaintQueue(Queue):
 
 class BounceQueue(Queue):
     def _exact_addr_from_body(self, body):
-        def _exact_addr_from_body(self, body):
         message_content=body['"Message"'][:-1]
         m1 = json.loads(message_content)
         m2 = json.loads(m1)
         source = m2['mail']['source']
         dests = []
-        for item in m2['bounce']['bounceRecipients']:
+        for item in m2['bounce']['bouncedRecipients']:
             dests.append(item['emailAddress'])
         return (source, dests)
 

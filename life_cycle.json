@@ -270,6 +270,11 @@
                                     { "Ref" : "MetadataDb" },
                                     "/*"
                                 ] ] }
+                            },
+                            {
+                                "Effect" : "Allow",
+                                "Action" : "sqs:*",
+                                "Resource" : "*"
                             }
                         ]
                     }
