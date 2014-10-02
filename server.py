@@ -7,6 +7,7 @@ import sqlite3
 import datetime
 import time
 import yaml
+import json
 import logging
 import shutil
 from crontab import CronTab
@@ -46,6 +47,8 @@ logging.basicConfig(filename = server_log_file, level = level, format=format, da
 
 upload_folder = 'upload'
 
+profile_file_name = 'profile.json'
+
 app = Flask(__name__)
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -82,6 +85,7 @@ users_repository = UsersRepository()
 
 with open(login_file) as f:
     login_profile = yaml.safe_load(f)
+
 for user in login_profile['users']:
     username = user['username']
     password = user['password']
@@ -137,6 +141,8 @@ def insert_to_table(insert_filename, overwrite):
     conn = boto.dynamodb2.connect_to_region(region)
     data_table = Table(data_db_name, connection=conn)
     metadata_table = Table(metadata_db_name, connection=conn)
+    with open(os.path.join(upload_folder, profile_file_name)) as f:
+        profile = json.load(f)
     f = open(insert_filename, 'r')
     error_info = {}
     line_number = 0
@@ -144,21 +150,23 @@ def insert_to_table(insert_filename, overwrite):
         line_number += 1
         eachline = eachline.strip()
         try:
-            (account_id, date, email, revenue) = eachline.split(',')
+            inputs = eachline.split(',')
+            account_id = inputs.pop(0).strip()
+            date = inputs.pop(0).strip()
+            date = change_date_to_epoch_number(date)
+            data = {'account_id': account_id,
+                    'date': date}
+            for item in profile:
+                keyname = item.keys()[0]
+                keytype = item[keyname]
+                value = inputs.pop(0).strip()
+                if keytype == 'date':
+                    value = change_date_to_epoch_number(value)
+                data.update({keyname: value})
         except Exception, e:
             error_info[line_number] = unicode(e)
             continue
-        try:
-            date = change_date_to_epoch_number(date)
-        except Exception, e:
-            msg = 'convert date failed, %s %s' % (date, unicode(e))
-            error_info[line_number] = msg
-            continue
 
-        data = {'account_id': account_id,
-                'date': date,
-                'email': email,
-                'revenue': revenue}
         try:
             data_table.put_item(data=data, overwrite=overwrite)
         except Exception, e:
@@ -392,6 +400,19 @@ def show_package(package_name=None):
         return 'read %s error: %s' % (file_path, unicode(e))
     return render_template('show_package.html', show_string=show_string)
 
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    if request.method == 'POST':
+        profile_file = request.files['profile_file']
+        if not profile_file:
+            return 'no profilefile'
+        profile_filename = os.path.join(upload_folder, profile_file_name)
+        profile_file.save(profile_filename)
+        redirect(url_for('profile'))
+    with open(os.path.join(upload_folder, profile_file_name)) as f:
+        profile = json.load(f)
+    return render_template('profile.html', profile=profile)
 @login_manager.user_loader
 def load_user(userid):
     return users_repository.get_user_by_id(userid)

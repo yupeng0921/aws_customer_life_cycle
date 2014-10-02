@@ -1,8 +1,8 @@
-data_db_name: replace_by_data_db_name
-metadata_db_name: replace_by_metadata_db_name
-region: replace_by_region
-complaint_queue_name: replace_by_complaint_queue_name
-bounce_queue_name: replace_by_bounce_queue_name
+data_db_name: lifecycle1-DataDb-1WR8GP1894LXR
+metadata_db_name: lifecycle1-MetadataDb-198S8C9YNYQBW
+region: ap-northeast-1
+complaint_queue_name: lifecycle1-ComplaintQueue-1J00HXSU1I2N1
+bounce_queue_name: lifecycle1-BounceQueue-1LATM3U41QHGA
 max_complaint_count: 100
 max_bounce_count: 100
 server_log_file: /tmp/life_cycle_server.log
@@ -12,7 +12,7 @@ interpret_debug_flag: info
 interpret_max_N: 10
 daemon_log_file: /tmp/life_cycle_daemon.log
 daemon_debug_flag: info
-job_directory: /opt/aws_customer_life_cycle-master/job
+job_directory: /home/ec2-user/aws_customer_life_cycle/job
 script_name: run.q
 schedule_name: schedule
 table_lock_id: "0"
