@@ -1,0 +1,6 @@
+aws_access_key_id:
+aws_secret_access_key:
+region: us-west-2
+source: aws china<penyu@amazon.com>
+reply_addresses: penyu@amazon.com
+return_path: penyu@amazon.com
