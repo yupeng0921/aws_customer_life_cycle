@@ -535,11 +535,11 @@ def interpret(node):
             v1 = None
             v2 = None
             try:
-                v1 = int(float(itp1.value))
+                v1 = float(itp1.value)
             except Exception, e:
                 pass
             try:
-                v2 = int(float(itp2.value))
+                v2 = float(itp2.value)
             except Exception, e:
                 pass
             if v1 and v2:
@@ -552,29 +552,29 @@ def interpret(node):
         elif node.value == 'MINUS':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            v1 = int(float(itp1.value))
-            v2 = int(float(itp2.value))
+            v1 = float(itp1.value)
+            v2 = float(itp2.value)
             itp.value = v1 - v2
             return itp
         elif node.value == 'TIMES':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            v1 = int(float(itp1.value))
-            v2 = int(float(itp2.value))
+            v1 = float(itp1.value)
+            v2 = float(itp2.value)
             itp.value = v1 * v2
             return itp
         elif node.value == 'DIVIDE':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            v1 = int(float(itp1.value))
-            v2 = int(float(itp2.value))
+            v1 = float(itp1.value)
+            v2 = float(itp2.value)
             itp.value = v1 / v2
             return itp
         elif node.value == 'GT':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            v1 = int(float(itp1.value))
-            v2 = int(float(itp2.value))
+            v1 = float(itp1.value)
+            v2 = float(itp2.value)
             if (v1 > v2):
                 itp.value = 1
             else:
@@ -583,8 +583,8 @@ def interpret(node):
         elif node.value == 'GE':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            v1 = int(float(itp1.value))
-            v2 = int(float(itp2.value))
+            v1 = float(itp1.value)
+            v2 = float(itp2.value)
             if (v1 >= v2):
                 itp.value = 1
             else:
@@ -593,8 +593,8 @@ def interpret(node):
         elif node.value == 'LT':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            v1 = int(float(itp1.value))
-            v2 = int(float(itp2.value))
+            v1 = float(itp1.value)
+            v2 = float(itp2.value)
             if (v1 < v2):
                 itp.value = 1
             else:
@@ -603,8 +603,8 @@ def interpret(node):
         elif node.value == 'LE':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            v1 = int(float(itp1.value))
-            v2 = int(float(itp2.value))
+            v1 = float(itp1.value)
+            v2 = float(itp2.value)
             if (v1 <= v2):
                 itp.value = 1
             else:
@@ -632,30 +632,30 @@ def interpret(node):
             return itp
         elif node.value == 'AND':
             itp1 = interpret(node.subnodes[0])
-            v1 = int(float(itp1.value))
+            v1 = float(itp1.value)
             if not v1:
                 itp.value = 0
                 return itp
             itp2 = interpret(node.subnodes[1])
-            v2 = int(float(itp2.value))
+            v2 = float(itp2.value)
             itp.value = v1 and v2
             return itp
         elif node.value == 'OR':
             itp1 = interpret(node.subnodes[0])
-            v1 = int(float(itp1.value))
+            v1 = float(itp1.value)
             if v1:
                 itp.value = 1
                 return itp
             itp2 = interpret(node.subnodes[1])
-            v1 = int(float(itp1.value))
-            v2 = int(float(itp2.value))
+            v1 = float(itp1.value)
+            v2 = float(itp2.value)
             itp.value = v1 or v2
             return itp
         elif node.value == 'MOD':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            v1 = int(float(itp1.value))
-            v2 = int(float(itp2.value))
+            v1 = float(itp1.value)
+            v2 = float(itp2.value)
             itp.value = v1 % v2
             return itp
         elif node.value == 'fun0':
