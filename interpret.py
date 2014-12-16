@@ -368,11 +368,13 @@ def send_mail(conf_file, subject_file, body_file, dest_addr, replacements):
     else:
         conn = boto.ses.connect_to_region(region)
     if format == 'html':
-        conn.send_email(source, subject, None, to_addresses, format=format, \
+        ret = conn.send_email(source, subject, None, to_addresses, format=format, \
                             reply_addresses=reply_addresses, return_path=return_path, html_body=emailbody)
+        logging.debug(str(ret))
     else:
-        conn.send_email(source, subject, None, to_addresses, format=format, \
+        ret = conn.send_email(source, subject, None, to_addresses, format=format, \
                             reply_addresses=reply_addresses, return_path=return_path, text_body=emailbody)
+        logging.debug(str(ret))
     return ('number', 0)
 
 func5_dict['send_mail'] = send_mail
