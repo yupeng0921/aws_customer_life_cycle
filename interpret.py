@@ -83,7 +83,7 @@ def t_VARIABLE(t):
 t_ignore = " \t"
 
 def t_newline(t):
-    r'\n+'
+    r'(\r?\n)+'
     t.lexer.lineno += t.value.count("\n")
 
 def t_COMMENT(t):

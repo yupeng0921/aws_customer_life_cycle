@@ -28,6 +28,8 @@ daemon_stderr_path = conf[u'daemon_stderr_path']
 daemon_pidfile_path = conf[u'daemon_pidfile_path']
 daemon_pidfile_timeout = conf[u'daemon_pidfile_timeout']
 daemon_interpret_timeout = conf[u'daemon_interpret_timeout']
+subprocess_stdout = conf['subprocess_stdout']
+subprocess_stderr = conf['subprocess_stderr']
 
 class RunTask():
         def __init__(self, stdin_path, stdout_path, stderr_path, pidfile_path, pidfile_timeout, \
@@ -78,8 +80,12 @@ class RunTask():
                 try:
                     cmd = u'python %s/%s %s' % (current_dir, interpret_file, package_name)
                     logging.debug(u'run interpret: %s' % cmd)
-                    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                    f_stdout = open(subprocess_stdout, 'w')
+                    f_stderr = open(subprocess_stderr, 'w')
+                    p = subprocess.Popen(cmd, shell=True, stdout=f_stdout, stderr=f_stderr)
                     ret = p.wait(timeout=daemon_interpret_timeout)
+                    f_stdout.close()
+                    f_stderr.close()
                 except Exception, e:
                     logging.error(u'run interpret failed: %s' % unicode(e))
                 cmd = u'''update %s set status="done" where magic_string = "%s"''' % \
