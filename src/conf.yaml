@@ -7,7 +7,7 @@ bounce_queue_name: lifecycle2-BounceQueue
 max_complaint_count: 100
 max_bounce_count: 100
 server_log_level: info
-interpret_log_level: info
+interpret_log_level: debug
 daemon_log_level: info
 log_file: __log
 user_history_len: 10

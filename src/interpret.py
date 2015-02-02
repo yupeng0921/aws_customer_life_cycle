@@ -65,7 +65,6 @@ t_COMMA    = r','
 def t_NUMBER(t):
     r'\d+(\.\d+)?'
     t.value = float(t.value)
-    t.value = 0
     return t
 
 def t_STRING(t):
@@ -90,7 +89,7 @@ def t_COMMENT(t):
     pass
 
 def t_error(t):
-    print("Illegal character '%s'" % t.value[0])
+    raise Exception("Illegal character '%s'" % t.value[0])
     t.lexer.skip(1)
 
 # Build the lexer
@@ -357,13 +356,17 @@ def set_metadata(name, value):
     account = context['account']
     account.set_metadata(name, value)
 
-class Node():
+class Node(object):
     def __init__(self, nodetype, value, subnodes=[]):
         self.nodetype = nodetype
         self.value = value
         self.subnodes = subnodes
+    def __str__(self):
+        return str('%s %s %s' % (self.nodetype, self.value, self.subnodes))
+    def __repr__(self):
+        return str('%s %s %s' % (self.nodetype, self.value, self.subnodes))
 
-class ITPTYPE():
+class ITPTYPE(object):
     def __init__(self, itptype, value):
         self.itptype = itptype
         self.value = value
@@ -394,6 +397,7 @@ def opr_node(oper, ops):
 
 def interpret(node):
     itp = ITPTYPE('number', 0)
+    logger.debug('node: %s' % node)
     if node.nodetype == 'number' or node.nodetype == 'string':
         itp.itptype = node.nodetype
         itp.value = node.value
