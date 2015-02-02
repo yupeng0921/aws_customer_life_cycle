@@ -1,4 +1,5 @@
 #! /usr/bin/env python
+# -*- coding: utf-8 -*-
 
 import sys
 import os
@@ -8,11 +9,12 @@ import re
 import logging
 import types
 import codecs
-import inspect
 import boto
-import boto.ses
+from log import get_log_level
 from sqs_op import complaint_queue, bounce_queue
-from boto.dynamodb2.table import Table
+from db_op import get_accounts, set_metadata_by_account
+
+logger = logging.getLogger(__name__)
 
 context = {}
 
@@ -61,12 +63,9 @@ t_BUILDIN  = r'\$[a-zA-Z0-9_\.\$]*'
 t_COMMA    = r','
 
 def t_NUMBER(t):
-    r'\d+'
-    try:
-        t.value = int(t.value)
-    except ValueError:
-        print("Integer value too large %d", t.value)
-        t.value = 0
+    r'\d+(\.\d+)?'
+    t.value = float(t.value)
+    t.value = 0
     return t
 
 def t_STRING(t):
@@ -108,7 +107,7 @@ precedence = (
     ('left', 'GT', 'GE', 'LT', 'LE', 'EQ', 'NE'),
     ('left','PLUS','MINUS'),
     ('left','TIMES','DIVIDE'),
-    )
+)
 
 # dictionary of variables
 variables = {}
@@ -122,7 +121,7 @@ func0_dict['get_current_time'] = get_current_time
 func1_dict = {}
 
 def write_log(msg):
-    logging.info(unicode(msg))
+    logger.info(unicode(msg))
     return ('number', 0)
 func1_dict['log'] = write_log
 
@@ -189,7 +188,7 @@ func2_dict['join'] = join_string
 func3_dict = {}
 
 def write_to_file(file_name, content, option):
-    logging.debug(u'write_to_file: file_name: %s content: %s option: %s' % (file_name, content, option))
+    logger.debug('write_to_file: file_name: %s content: %s option: %s' % (file_name, content, option))
     base_dir = '%s/%s' % (context['job_directory'], context['current_job'])
     full_file_path = '%s/%s' % (base_dir, file_name)
     if option == 'append':
@@ -207,83 +206,22 @@ def write_to_file(file_name, content, option):
 
 func3_dict['write_to_file'] = write_to_file
 
-def set_metadata_by_account(account_id, metadata_name, value):
-    metadata_table = context[u'metadata_table']
+def set_metadata_by_account_with_check(account_id, metadata_name, value):
     if len(metadata_name) <= 2 or metadata_name[0:2] != '$$':
         msg = 'invalide metadata name, account_id: %s metadata_name: %s' % \
             (account_name, metadata_name)
         raise Exception(msg)
-    try:
-        item = metadata_table.get_item(account_id=account_id)
-    except Exception, e:
-        msg = 'get metadata for account failed, %s %s' % \
-            (account_id, unicode(e))
-        raise Exception(msg)
-    metadata_name = metadata_name[2:]
-    item[metadata_name] = value
-    try:
-        ret = item.partial_save()
-    except Exception, e:
-        msg = 'set metadate by account failed, account_id: %s metadata_name: %s value: %s %s' % \
-            (account_id, metadata_name, value, unicode(e))
-        raise Exception(msg)
-    # if not ret:
-    #     msg = 'set metadate by account failed, account_id: %s metadata_name: %s value: %s' % \
-    #         (account_id, metadata_name, value)
-    #     raise Exception(msg)
+    set_metadata_by_account(account_id, metadata_name, value)
     return ('number', 0)
 
-func3_dict['set_metadata_by_account'] = set_metadata_by_account
-
-func4_dict = {}
-def get_item_by_date(date, flag, count, unit):
-    if not flag in ('before', 'after'):
-        msg = 'flag should be before or after, not %s' % flag
-        raise Exception(msg)
-    if not unit in ('month', 'week', 'day', 'hour', 'minute', 'second'):
-        msg = 'flag should be month, week, day, hour, minute or second, not %s' % unit
-        raise Exception(msg)
-    try:
-        count = int(count)
-    except Exception, e:
-        msg = 'transfer count to int failed, %s %s' % (count, e)
-        raise Exception(msg)
-    if unit == 'second':
-        factor = 1
-    elif unit == 'minute':
-        factor = 60
-    elif unit == 'hour':
-        factor = 3600
-    elif unit == 'day':
-        factor = 3600 * 24
-    elif unit == 'week':
-        factor = 3600 * 24 * 7
-    elif unit == 'month':
-        factor = 3600 * 24 * 30
-    else:
-        raise Exception('should not be here, unit: %s' % unit)
-    account_id = context['metadata']['account_id']
-    data_table = context['data_table']
-    if flag == 'before':
-        date = date - count * factor
-        items = data_table.query(account_id__eq=account_id, date__lte=date, limit=1, reverse=False)
-    elif flag == 'after':
-        date = date + count * factor
-        items = data_table.query(account_id__eq=account_id, date__gte=date, limit=1, reverse=True)
-    result = None
-    for item in items:
-        result = item
-        break
-    return ('dict', result)
-
-func4_dict['get_item_by_date'] = get_item_by_date
+func3_dict['set_metadata_by_account'] = set_metadata_by_account_with_check
 
 func5_dict = {}
 
-default_pattern_begin = u'\{\{'
-default_pattern_end = u'\}\}'
+default_pattern_begin = '\{\{'
+default_pattern_end = '\}\}'
 def send_mail(conf_file, subject_file, body_file, dest_addr, replacements):
-    logging.debug(u'send_mail: conf_file: %s subject_file: %s body_file: %s dest_addr: %s replacements: %s' % \
+    logger.debug('send_mail: conf_file: %s subject_file: %s body_file: %s dest_addr: %s replacements: %s' % \
                      (conf_file, subject_file, body_file, dest_addr, replacements))
     base_dir = '%s/%s' % (context['job_directory'], context['current_job'])
     conf_file = '%s/%s' % (base_dir, conf_file)
@@ -354,7 +292,7 @@ def send_mail(conf_file, subject_file, body_file, dest_addr, replacements):
 
     count = 1
     for replacement in replacements:
-        m = u'%s%s%s' % (pattern_begin, count, pattern_end)
+        m = '%s%s%s' % (pattern_begin, count, pattern_end)
         p = re.compile(m)
         emailbody, n = re.subn(p, replacement, emailbody)
         if n == 0:
@@ -370,44 +308,32 @@ def send_mail(conf_file, subject_file, body_file, dest_addr, replacements):
     if format == 'html':
         ret = conn.send_email(source, subject, None, to_addresses, format=format, \
                             reply_addresses=reply_addresses, return_path=return_path, html_body=emailbody)
-        logging.debug(str(ret))
+        logger.debug(str(ret))
     else:
         ret = conn.send_email(source, subject, None, to_addresses, format=format, \
                             reply_addresses=reply_addresses, return_path=return_path, text_body=emailbody)
-        logging.debug(str(ret))
+        logger.debug(str(ret))
     return ('number', 0)
 
 func5_dict['send_mail'] = send_mail
 
 def get_data_from_db(index, name):
-    metadata = context['metadata']
-    if index <= 0:
-        raise Exception('invalide index: %d' % index)
-    fetched_items = context['fetched_items']
-    if index > len(fetched_items):
-        raise Exception('index out of range, index=%d, items=%d' % (index, len(fetched_items)))
-    item = fetched_items[index-1]
-    if name in item:
-        return item[name]
-    else:
-        raise Exception('no such field: %s' % name)
+    account = context['account']
+    return account.get_data(indx, name)
 
 def get_buildin_variable(name):
     if context['stage'] != 'body':
         raise Exception('can only get buildin variable in body state: %s' % name)
-    metadata = context['metadata']
+    account = context['account']
     if name == '$N':
-        value = context['count']
+        value = account.count
         return ('number', value)
     elif name == '$account_id':
-        value = metadata['account_id']
+        value = account.account_id
         return ('string', value)
     elif len(name) > 2 and name[0:2] == '$$':
         name = name[2:]
-        if name not in metadata:
-            return ('string', '0')
-        else:
-            return ('string', metadata[name])
+        return account.get_metadata(name)
     else:
         name = name[1:]
         names = name.split('.')
@@ -423,23 +349,13 @@ def get_buildin_variable(name):
 def set_metadata(name, value):
     if context['stage'] != 'body':
         raise Exception('can only set metadata in body state')
-    metadata = context['metadata']
-    account_id = metadata['account_id']
     if len(name) <= 2:
         raise Exception('invalid metadata name: %s' % name)
     if name[0:2] != '$$':
         raise Exception('invalid metadata name: %s' % name)
     name = name[2:]
-    metadata[name] = value
-    try:
-        ret = metadata.partial_save()
-    except Exception, e:
-        msg = 'set metadata failed, account_id: %s name: %s %s' % (account_id, name, unicode(e))
-        raise Exception(msg)
-    else:
-        if not ret:
-            msg = 'set metadata failed, account_id: %s name: %s' % (account_id, name)
-            raise Exception(msg)
+    account = context['account']
+    account.set_metadata(name, value)
 
 class Node():
     def __init__(self, nodetype, value, subnodes=[]):
@@ -523,7 +439,7 @@ def interpret(node):
             itp.itptype = itp1.itptype
             itp.value = value
             return itp
-        elif node.value == u'EQUAL_BUILDIN':
+        elif node.value == 'EQUAL_BUILDIN':
             itp1 = interpret(node.subnodes[1])
             value = unicode(itp1.value)
             buildin_name = node.subnodes[0]
@@ -615,8 +531,12 @@ def interpret(node):
         elif node.value == 'EQ':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            v1 = unicode(itp1.value)
-            v2 = unicode(itp2.value)
+            try:
+                v1 = float(itp1)
+                v2 = float(itp2)
+            except Exception:
+                v1 = unicode(itp1.value)
+                v2 = unicode(itp2.value)
             if (v1 == v2):
                 itp.value = 1
             else:
@@ -625,8 +545,12 @@ def interpret(node):
         elif node.value == 'NE':
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
-            v1 = unicode(itp1.value)
-            v2 = unicode(itp2.value)
+            try:
+                v1 = float(itp1)
+                v2 = float(itp2)
+            except Exception:
+                v1 = unicode(itp1.value)
+                v2 = unicode(itp2.value)
             if (v1 != v2):
                 itp.value = 1
             else:
@@ -908,24 +832,18 @@ def p_error(t):
 import ply.yacc as yacc
 yacc.yacc()
 
-with open(u'%s/conf.yaml' % os.path.split(os.path.realpath(__file__))[0], u'r') as f:
+with open('%s/conf.yaml' % os.path.split(os.path.realpath(__file__))[0], 'r') as f:
     conf = yaml.safe_load(f)
 
-data_db_name = conf[u'data_db_name']
-metadata_db_name = conf[u'metadata_db_name']
-region = conf[u'region']
-log_file = conf[u'log_file']
-interpret_debug_flag = conf[u'interpret_debug_flag']
-job_directory = conf[u'job_directory']
-script_name = conf[u'script_name']
-table_lock_id = conf[u'table_lock_id']
-interpret_max_N = conf[u'interpret_max_N']
+interpret_log_level = conf['interpret_log_level']
+script_name = conf['script_name']
+log_file = conf['log_file']
 
 p_begin = re.compile(r'begin\s*\{')
 p_body = re.compile(r'\}\s*body\s*\{')
 p_end = re.compile(r'\}\s*end\s*\{')
 def get_script(script_file):
-    with open(script_file, u'r') as f:
+    with open(script_file, 'r') as f:
         script_string = f.read()
     p = p_begin.search(script_string)
     if not p:
@@ -943,7 +861,7 @@ def get_script(script_file):
     end_start = p.start() + len(p.group())
     index = len(script_string) - 1
     while index >= 0:
-        if script_string[index] == u'}':
+        if script_string[index] == '}':
             break
         index -= 1
     if index < 0:
@@ -954,65 +872,51 @@ def get_script(script_file):
     end = script_string[end_start:end_stop]
     return (begin, body, end)
 
-def do_job(current_job):
-    format = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(message)s'
+def do_job(job_directory, current_job):
     datefmt='%Y-%m-%d %H:%M:%S'
-    if interpret_debug_flag == u'debug':
-        level = logging.DEBUG
-    else:
-        level = logging.INFO
-    logfile = u'%s/%s/%s' % (job_directory, current_job, log_file)
-    logging.basicConfig(filename = logfile, level = level, format=format, datefmt=datefmt)
-    logging.info('start job: %s' % current_job)
-    script_file = u'%s/%s/%s' % (job_directory, current_job, script_name)
+    log_level = get_log_level(interpret_log_level)
+    logger.setLevel(log_level)
+    logfile = '%s/%s/%s' % (job_directory, current_job, log_file)
+    fh = logging.FileHandler(logfile)
+    fmt = ('%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(levelname)s - %(message)s')
+    datefmt='%Y-%m-%d %H:%M:%S'
+    formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
+    fh.setFormatter(formatter)
+    fh.setLevel(log_level)
+    logger.addHandler(fh)
+    logger.info('start job: %s', current_job)
+    script_file = '%s/%s/%s' % (job_directory, current_job, script_name)
     begin, body, end = get_script(script_file)
 
-    conn = boto.dynamodb2.connect_to_region(region)
-    data_table = Table(data_db_name, connection=conn)
-    metadata_table = Table(metadata_db_name, connection=conn)
-
-    context[u'job_directory'] = job_directory
-    context[u'current_job'] = current_job
-    context[u'script_name'] = script_name
-    context[u'data_table'] = data_table
-    context[u'metadata_table'] = metadata_table
-    context[u'stage'] = u'begin'
+    context['job_directory'] = job_directory
+    context['current_job'] = current_job
+    context['script_name'] = script_name
+    context['stage'] = 'begin'
     yacc.parse(begin)
-    context[u'stage'] = u'body'
+    context['stage'] = 'body'
     body = body.strip()
     if body:
-        metadatas = metadata_table.scan()
+        accounts = get_accounts()
         parsed_account = 0
-        for metadata in metadatas:
-            account_id = metadata[u'account_id']
-            if account_id == table_lock_id:
-                continue
-            logging.debug(u'parsing account: %s' % account_id)
-            items = data_table.query(account_id__eq=account_id, limit=interpret_max_N, reverse=False)
-            context[u'metadata'] = metadata
-            context[u'items'] = items
-            context[u'fetched_items'] = []
-            fetched_items = context[u'fetched_items']
-            count = 0
-            for item in items:
-                fetched_items.append(item)
-                count += 1
-            context[u'count'] = count
-            if count > 0:
+        for account in accounts:
+            context['account'] = account
+            logger.debug('parsing account: %s', account[account_id])
+            if account.count > 0:
                 yacc.parse(body)
             parsed_account += 1
             if parsed_account % 100 == 0:
-                logging.info('parsed account: %d' % parsed_account)
-        logging.info('total parsed account: %d' % parsed_account)
-    context[u'stage'] = u'end'
+                logging.info('parsed account: %d', parsed_account)
+        logger.info('total parsed account: %d', parsed_account)
+    context['stage'] = 'end'
     yacc.parse(end)
     complaint_queue.delete_messages()
     bounce_queue.delete_messages()
-    logging.info('stop job: %s' % current_job)
+    logger.info('stop job: %s', current_job)
 
 if __name__ == '__main__':
-    current_job = sys.argv[1]
+    job_directory = sys.argv[1]
+    current_job = sys.argv[2]
     try:
-        do_job(current_job)
+        do_job(job_directory, current_job)
     except Exception, e:
-        logging.exception('run job failed')
+        logger.exception('run job failed')

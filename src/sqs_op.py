@@ -11,7 +11,7 @@ conf_file_path = os.path.join(os.path.split(os.path.realpath(__file__))[0], 'con
 with open('%s/conf.yaml' % os.path.split(os.path.realpath(__file__))[0], 'r') as f:
     conf = yaml.safe_load(f)
 
-region = conf['region']
+region = conf['sqs_region']
 complaint_queue_name = conf['complaint_queue_name']
 max_complaint_count = conf['max_complaint_count']
 bounce_queue_name = conf['bounce_queue_name']
@@ -20,13 +20,19 @@ max_bounce_count = conf['max_bounce_count']
 class Queue():
     used = []
     def __init__(self, queue_name, region, max_count, num_messages=10):
+        self.queue_name = queue_name
+        self.region = region
+        self.max_count = max_count
+        self.num_messages = num_messages
+        self.queue = None
+    def init_queue(self, queue_name, region):
         conn = boto.sqs.connect_to_region(region)
         queue = conn.get_queue(queue_name)
         queue.set_message_class(boto.sqs.message.MHMessage)
         self.queue = queue
-        self.max_count = max_count
-        self.num_messages = num_messages
     def get_dests(self, source_address):
+        if self.queue is None:
+            self.init_queue(self.queue_name, self.region)
         ret_list = []
         unused_list = []
         rs = self.queue.get_messages(num_messages=self.num_messages)
