@@ -50,10 +50,18 @@ class InterpretTest(unittest.TestCase):
             log = f.read()
         self.assertTrue('hello world' in log)
 
-    def test_add(self):
-        job_name = 'test_add'
+    def test_plus(self):
+        job_name = 'test_plus'
         log_path = os.path.join(job_directory, job_name, log_file)
         interpret.do_job(job_directory, job_name)
         with open(log_path) as f:
             log = f.read()
         self.assertTrue('a = 2' in log)
+
+    def test_minus(self):
+        job_name = 'test_minus'
+        log_path = os.path.join(job_directory, job_name, log_file)
+        interpret.do_job(job_directory, job_name)
+        with open(log_path) as f:
+            log = f.read()
+        self.assertTrue('a = 4' in log)
