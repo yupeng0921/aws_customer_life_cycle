@@ -9,7 +9,7 @@ max_bounce_count: 100
 server_log_level: info
 interpret_log_level: info
 daemon_log_level: info
-log_file: $__log
+log_file: __log
 user_history_len: 10
 script_name: run.q
 schedule_name: schedule
