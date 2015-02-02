@@ -21,10 +21,16 @@ log_file = conf['log_file']
 class InterpretTest(unittest.TestCase):
 
     def setUp(self):
-        pass
+        self.clean_log()
 
     def tearDown(self):
-        pass
+        self.clean_log()
+
+    def clean_log(self):
+        for job_name in os.listdir(job_directory):
+            log_path = os.path.join(job_directory, job_name, log_file)
+            if os.path.isfile(log_path):
+                os.remove(log_path)
 
     def test_parameter(self):
         job_name = 'test_parameter'
@@ -37,22 +43,17 @@ class InterpretTest(unittest.TestCase):
                 if count >= 6:
                     p.kill()
                     break
-        log_path = '%s/%s/%s' % (job_directory, job_name, log_file)
-        cmd = 'rm -f %s' % log_path
-        run_command(cmd)
         cmd = 'python %s %s %s' % (interpret_path, job_directory, job_name)
         run_command(cmd)
+        log_path = os.path.join(job_directory, job_name, log_file)
         with open(log_path) as f:
             log = f.read()
-        cmd = 'rm -f %s' % log_path
-        run_command(cmd)
         self.assertTrue('hello world' in log)
 
     def test_add(self):
         job_name = 'test_add'
-        log_path = '%s/%s/%s' % (job_directory, job_name, log_file)
+        log_path = os.path.join(job_directory, job_name, log_file)
         interpret.do_job(job_directory, job_name)
-        log_path = '%s/%s/%s' % (job_directory, job_name, log_file)
         with open(log_path) as f:
             log = f.read()
         self.assertTrue('a = 2' in log)
