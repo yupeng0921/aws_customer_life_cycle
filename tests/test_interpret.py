@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 
 import unittest
+import os
 import subprocess
 import time
 from mock import Mock, patch
+import interpret
 
-interpret_path = '../src/interpret.py'
-jobs_dir = 'fake_jobs'
+base_dir = os.path.split(os.path.realpath(__file__))[0]
+interpret_path = '%s/../src/interpret.py' % base_dir
+jobs_dir = '%s/fake_jobs' % base_dir
 
 class InterpretTest(unittest.TestCase):
 
