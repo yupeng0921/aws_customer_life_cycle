@@ -65,3 +65,19 @@ class InterpretTest(unittest.TestCase):
         with open(log_path) as f:
             log = f.read()
         self.assertTrue('a = 4' in log)
+
+    def test_times(self):
+        job_name = 'test_times'
+        log_path = os.path.join(job_directory, job_name, log_file)
+        interpret.do_job(job_directory, job_name)
+        with open(log_path) as f:
+            log = f.read()
+        self.assertTrue('a = 6' in log)
+
+    def test_devide(self):
+        job_name = 'test_divide'
+        log_path = os.path.join(job_directory, job_name, log_file)
+        interpret.do_job(job_directory, job_name)
+        with open(log_path) as f:
+            log = f.read()
+        self.assertTrue('a = 2' in log)
