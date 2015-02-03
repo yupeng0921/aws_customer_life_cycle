@@ -66,8 +66,10 @@ class DbOpTest(unittest.TestCase):
         db_op.insert_data(account1['account_id'], account1['date'], account1['data'])
         account2 = fake_accounts[2]
         db_op.insert_data(account2['account_id'], account2['date'], account2['data'])
+        account3 = fake_accounts[3]
+        db_op.insert_data(account3['account_id'], account3['date'], account3['data'])
         results = list(data_collection.find())
-        self.assertEqual(len(results), 1)
+        self.assertEqual(len(results), 2)
         result = results[0]
         self.assertEqual(result['_id'], account0['account_id'])
         self.assertEqual(len(result['data']), 2)
@@ -77,3 +79,17 @@ class DbOpTest(unittest.TestCase):
         self.assertEqual(result['data'][0]['date'], account1['date'])
         self.assertEqual(result['data'][0]['ka'], account1['data']['ka'])
         self.assertEqual(result['data'][0]['kb'], account1['data']['kb'])
+
+    def test_get_accounts(self):
+        account0 = fake_accounts[0]
+        db_op.insert_data(account0['account_id'], account0['date'], account0['data'])
+        account3 = fake_accounts[3]
+        db_op.insert_data(account3['account_id'], account3['date'], account3['data'])
+        accounts = list(db_op.get_accounts())
+        self.assertEqual(len(accounts), 2)
+        account = accounts[0]
+        self.assertEqual(account.account_id, account0['account_id'])
+        self.assertEqual(account.count, 1)
+        account = accounts[1]
+        self.assertEqual(account.account_id, account3['account_id'])
+        self.assertEqual(account.count, 1)

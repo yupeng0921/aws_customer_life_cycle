@@ -22,7 +22,7 @@ db = client[db_name]
 data_collection = db['data_collection_name']
 
 class Account(object):
-    def __init___(self, item):
+    def __init__(self, item):
         self.item = item
         self.account_id = item['_id']
         if 'data' in item:
@@ -58,6 +58,7 @@ class Account(object):
 def get_accounts():
     items = data_collection.find()
     for item in items:
+        print(item)
         yield Account(item)
 
 def set_metadata_by_account(account_id, metadata_name, value):
@@ -71,5 +72,5 @@ def insert_data(account_id, date, data):
     data.update({'date': date})
     ret = data_collection.update(primary, {'$push': {'data': {'$each':[data], '$slice':-data_history_len}}})
     if ret['updatedExisting'] is False:
-        primary.update(data)
+        primary.update({'data': [data]})
         data_collection.insert(primary)
