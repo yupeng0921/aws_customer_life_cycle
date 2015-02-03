@@ -210,7 +210,7 @@ def set_metadata_by_account_with_check(account_id, metadata_name, value):
         msg = 'invalide metadata name, account_id: %s metadata_name: %s' % \
             (account_name, metadata_name)
         raise Exception(msg)
-    set_metadata_by_account(account_id, metadata_name, value)
+    set_metadata_by_account(account_id, metadata_name[2:], value)
     return ('number', 0)
 
 func3_dict['set_metadata_by_account'] = set_metadata_by_account_with_check
@@ -332,7 +332,7 @@ def get_buildin_variable(name):
         return ('string', value)
     elif len(name) > 2 and name[0:2] == '$$':
         name = name[2:]
-        return account.get_metadata(name)
+        return ('string', account.get_metadata(name))
     else:
         name = name[1:]
         names = name.split('.')

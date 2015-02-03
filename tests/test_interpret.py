@@ -107,3 +107,11 @@ class InterpretTest(unittest.TestCase):
         self.assertTrue('account_id method2: 111' in log)
         self.assertTrue('data count: 1' in log)
         self.assertTrue('ka: v1' in log)
+        self.assertTrue('kb: vb1' in log)
+
+    @patch('interpret.set_metadata_by_account')
+    def test_set_metadata_by_account(self, set_metadata_by_account):
+        job_name = 'test_set_metadata_by_account'
+        log_path = os.path.join(job_directory, job_name, log_file)
+        interpret.do_job(job_directory, job_name)
+        set_metadata_by_account.assert_called_with('111', 'key1', 'value1')
