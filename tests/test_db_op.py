@@ -93,3 +93,26 @@ class DbOpTest(unittest.TestCase):
         account = accounts[1]
         self.assertEqual(account.account_id, account3['account_id'])
         self.assertEqual(account.count, 1)
+
+    def test_set_metadata(self):
+        account0 = fake_accounts[0]
+        db_op.insert_data(account0['account_id'], account0['date'], account0['data'])
+        account = list(db_op.get_accounts())[0]
+        account.set_metadata('meta1', 'value1')
+        item = list(data_collection.find())[0]
+        self.assertEqual(item['meta1'], 'value1')
+
+    def test_get_metadata(self):
+        account0 = fake_accounts[0]
+        db_op.insert_data(account0['account_id'], account0['date'], account0['data'])
+        account = list(db_op.get_accounts())[0]
+        account.set_metadata('meta1', 'value1')
+        val = account.get_metadata('meta1')
+        self.assertEqual(val, 'value1')
+
+    def test_get_empty_metadata(self):
+        account0 = fake_accounts[0]
+        db_op.insert_data(account0['account_id'], account0['date'], account0['data'])
+        account = list(db_op.get_accounts())[0]
+        val = account.get_metadata('meta1')
+        self.assertEqual(val, '0')

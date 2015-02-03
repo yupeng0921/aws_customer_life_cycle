@@ -33,7 +33,7 @@ class Account(object):
         self.count = len(self.data)
 
     def set_metadata(self, name, value):
-        metadata = {name, value}
+        metadata = {name: value}
         self.item.update(metadata)
         ret = data_collection.update({'_id': self.account_id}, metadata)
         if ret['updatedExisting'] is not True:
@@ -41,7 +41,7 @@ class Account(object):
 
     def get_metadata(self, name):
         if name in self.item:
-            return item['name']
+            return self.item[name]
         else:
             return '0'
 
