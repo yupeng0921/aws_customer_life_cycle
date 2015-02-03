@@ -81,3 +81,29 @@ class InterpretTest(unittest.TestCase):
         with open(log_path) as f:
             log = f.read()
         self.assertTrue('a = 2' in log)
+
+    @patch('interpret.get_accounts')
+    def test_body(self, get_accounts):
+        class Account(object):
+            def __init__(self):
+                self.count = 1
+                self.account_id = '111'
+                self.metadata = {}
+            def get_data(self, index, name):
+                return 'v1'
+            def set_metadata(self, name, value):
+                self.metadata[name] = value
+            def get_metadata(self, name):
+                return self.metadata[name]
+        def side_effect():
+            return [Account()]
+        get_accounts.side_effect = side_effect
+        job_name = 'test_body'
+        log_path = os.path.join(job_directory, job_name, log_file)
+        interpret.do_job(job_directory, job_name)
+        with open(log_path) as f:
+            log = f.read()
+        self.assertTrue('account_id method1: 111' in log)
+        self.assertTrue('account_id method2: 111' in log)
+        self.assertTrue('data count: 1' in log)
+        self.assertTrue('ka: v1' in log)

@@ -318,7 +318,7 @@ func5_dict['send_mail'] = send_mail
 
 def get_data_from_db(index, name):
     account = context['account']
-    return account.get_data(indx, name)
+    return account.get_data(index, name)
 
 def get_buildin_variable(name):
     if context['stage'] != 'body':
@@ -342,7 +342,10 @@ def get_buildin_variable(name):
             index = int(names[0])
         except Exception, e:
             raise Exception('buildin name is not number: %s' % name)
-        value = get_data_from_db(index, names[1])
+        if names[1] == 'account_id':
+            value = account.account_id
+        else:
+            value = get_data_from_db(index, names[1])
         return ('string', value)
 
 def set_metadata(name, value):
@@ -904,7 +907,7 @@ def do_job(job_directory, current_job):
         parsed_account = 0
         for account in accounts:
             context['account'] = account
-            logger.debug('parsing account: %s', account[account_id])
+            logger.debug('parsing account: %s', account.account_id)
             if account.count > 0:
                 yacc.parse(body)
             parsed_account += 1

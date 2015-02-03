@@ -53,7 +53,6 @@ class Account(object):
         if name not in data:
             raise Exception('no such value: %s %d %d %s' % (self.account_id, self.count, index, name))
         return data[name]
-        
 
 def get_accounts():
     items = data_collection.find()
