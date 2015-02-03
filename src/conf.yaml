@@ -1,6 +1,8 @@
 app_dir: /opt/life_cycle
+mongodb_addr: 127.0.0.1
+mongodb_port: 27017
 db_name: life_cycle
-table_name: data_table
+data_collection_name: data_collection
 sqs_region: ap-northeast-1
 complaint_queue_name: lifecycle2-ComplaintQueue
 bounce_queue_name: lifecycle2-BounceQueue
@@ -10,7 +12,7 @@ server_log_level: info
 interpret_log_level: debug
 daemon_log_level: info
 log_file: __log
-user_history_len: 10
+data_history_len: 10
 script_name: run.q
 schedule_name: schedule
 interpret_file: interpret.py
