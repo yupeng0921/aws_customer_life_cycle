@@ -116,3 +116,10 @@ class DbOpTest(unittest.TestCase):
         account = list(db_op.get_accounts())[0]
         val = account.get_metadata('meta1')
         self.assertEqual(val, '0')
+
+    def test_get_data(self):
+        account0 = fake_accounts[0]
+        db_op.insert_data(account0['account_id'], account0['date'], account0['data'])
+        account = list(db_op.get_accounts())[0]
+        val = account.get_data(1, 'ka')
+        self.assertEqual(val, account0['data']['ka'])
