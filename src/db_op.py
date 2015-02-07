@@ -112,6 +112,7 @@ def delete_data(account_id, date):
     data_collection.update(primary, {'$set': {'data': item['data']}})
 
 def delete_account(account_id):
+    primary = {'_id': account_id}
     data_collection.remove(primary)
 
 magic_key = {'_id': lock_magic}

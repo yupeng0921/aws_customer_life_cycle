@@ -125,6 +125,19 @@ class DbOpTest(unittest.TestCase):
         self.assertEqual(len(result['data']), 1)
         self.assertEqual(result['data'][0]['ka'], account0['data']['ka'])
 
+    def test_delete_account(self):
+        account0 = fake_accounts[0]
+        db_op.insert_data(account0['account_id'], account0['date'], account0['data'])
+        account3 = fake_accounts[3]
+        db_op.insert_data(account3['account_id'], account3['date'], account3['data'])
+        results = list(data_collection.find())
+        self.assertEqual(len(results), 2)
+        db_op.delete_account(account0['account_id'])
+        results = list(data_collection.find())
+        self.assertEqual(len(results), 1)
+        result = results[0]
+        self.assertEqual(result['_id'], account3['account_id'])
+
     def test_get_accounts(self):
         account0 = fake_accounts[0]
         db_op.insert_data(account0['account_id'], account0['date'], account0['data'])
