@@ -539,11 +539,12 @@ def interpret(node):
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
             try:
-                v1 = float(itp1)
-                v2 = float(itp2)
+                v1 = float(itp1.value)
+                v2 = float(itp2.value)
             except Exception:
                 v1 = unicode(itp1.value)
                 v2 = unicode(itp2.value)
+            logger.debug('EQ: v1 %s %s v2 %s %s' % (type(v1), v1, type(v2), v2))
             if (v1 == v2):
                 itp.value = 1
             else:
@@ -553,11 +554,12 @@ def interpret(node):
             itp1 = interpret(node.subnodes[0])
             itp2 = interpret(node.subnodes[1])
             try:
-                v1 = float(itp1)
-                v2 = float(itp2)
+                v1 = float(itp1.value)
+                v2 = float(itp2.value)
             except Exception:
                 v1 = unicode(itp1.value)
                 v2 = unicode(itp2.value)
+            logger.debug('NE: v1 %s %s v2 %s %s' % (type(v1), v1, type(v2), v2))
             if (v1 != v2):
                 itp.value = 1
             else:

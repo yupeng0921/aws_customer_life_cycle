@@ -115,3 +115,16 @@ class InterpretTest(unittest.TestCase):
         log_path = os.path.join(job_directory, job_name, log_file)
         interpret.do_job(job_directory, job_name)
         set_metadata_by_account.assert_called_with('111', 'key1', 'value1')
+
+    def test_number(self):
+        job_name = 'test_number'
+        log_path = os.path.join(job_directory, job_name, log_file)
+        interpret.do_job(job_directory, job_name)
+        with open(log_path) as f:
+            log = f.read()
+        self.assertTrue('INFO - test1 equal' in log)
+        self.assertTrue('INFO - test2 not equal' in log)
+        self.assertTrue('INFO - test3 equal' in log)
+        self.assertTrue('INFO - test4 not equal' in log)
+        self.assertTrue('INFO - test5 equal' in log)
+        self.assertTrue('INFO - test6 not equal' in log)
