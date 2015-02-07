@@ -13,19 +13,17 @@ import shutil
 from crontab import CronTab
 from flask import Flask, request, redirect, url_for, render_template, abort, Response
 from werkzeug import secure_filename
-from flask.ext.login import LoginManager , login_required , UserMixin , login_user, logout_user
+from flask.ext.login import LoginManager, login_required, UserMixin, login_user, logout_user
+from log import get_log_level
+from worker import insert_to_table
 
-import boto
-from boto.dynamodb2.table import Table
+logger = logging.getLogger(__name__)
 
 with open('%s/conf.yaml' % os.path.split(os.path.realpath(__file__))[0], 'r') as f:
     conf = yaml.safe_load(f)
 
-data_db_name = conf['data_db_name']
-metadata_db_name = conf['metadata_db_name']
-region = conf['region']
 server_log_file = conf['server_log_file']
-server_debug_flag = conf['server_debug_flag']
+server_log_level = conf['server_log_level']
 table_lock_id = conf['table_lock_id']
 job_directory = conf['job_directory']
 schedule_name = conf['schedule_name']
@@ -37,13 +35,15 @@ script_name = conf['script_name']
 log_file = conf['log_file']
 login_file = conf['login_file']
 
-format = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(message)s'
+log_level = get_log_level(server_log_level)
+logger.setLevel(log_level)
+fh = logging.FileHandler(log_file)
+fmt = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(message)s'
 datefmt='%Y-%m-%d %H:%M:%S'
-if server_debug_flag == 'debug':
-    level = logging.DEBUG
-else:
-    level = logging.INFO
-logging.basicConfig(filename = server_log_file, level = level, format=format, datefmt=datefmt)
+formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
+fh.setFormatter(formatter)
+fh.setLevel(log_level)
+logger.addHandler(fh)
 
 upload_folder = 'upload'
 
@@ -105,13 +105,13 @@ def login():
         username = request.form['username']
         password = request.form['password']
         registeredUser = users_repository.get_user_by_name(username)
-        logging.info(registeredUser)
-        logging.info(registeredUser.password)
+        logger.info(registeredUser)
+        logger.info(registeredUser.password)
         if registeredUser != None and unicode(registeredUser.password) == unicode(password):
             login_user(registeredUser)
             return redirect(url_for('index'))
         else:
-            logging.warning('invalide username or password: %s %s' % (username, password))
+            logger.warning('invalide username or password: %s %s' % (username, password))
             return abort(401)
     else:
         return Response('''
@@ -127,59 +127,6 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('index'))
-
-# assume the input is such format 2013/12/25
-def change_date_to_epoch_number(date):
-    date = date.split('/')
-    if len(date) != 3:
-        raise Exception('invalid date format')
-    date = int(time.mktime(datetime.datetime(int(date[0]),int(date[1]),int(date[2])).timetuple()))
-    return date
-
-def insert_to_table(insert_filename, overwrite):
-    logging.info('insert_filename: %s overwrite: %s' % (insert_filename, overwrite))
-    conn = boto.dynamodb2.connect_to_region(region)
-    data_table = Table(data_db_name, connection=conn)
-    metadata_table = Table(metadata_db_name, connection=conn)
-    with open(os.path.join(upload_folder, profile_file_name)) as f:
-        profile = json.load(f)
-    f = open(insert_filename, 'r')
-    error_info = {}
-    line_number = 0
-    for eachline in f:
-        line_number += 1
-        eachline = eachline.strip()
-        try:
-            inputs = eachline.split(',')
-            account_id = inputs.pop(0).strip()
-            date = inputs.pop(0).strip()
-            date = change_date_to_epoch_number(date)
-            data = {'account_id': account_id,
-                    'date': date}
-            for item in profile:
-                keyname = item.keys()[0]
-                keytype = item[keyname]
-                value = inputs.pop(0).strip()
-                if keytype == 'date':
-                    value = change_date_to_epoch_number(value)
-                data.update({keyname: value})
-        except Exception, e:
-            error_info[line_number] = unicode(e)
-            continue
-
-        try:
-            data_table.put_item(data=data, overwrite=overwrite)
-        except Exception, e:
-            error_info[line_number] = unicode(e)
-            continue
-
-        try:
-            metadata_table.put_item(data={'account_id':account_id}, overwrite=False)
-        except Exception, e:
-            pass
-
-    f.close()
-    return error_info
 
 @app.route('/insert', methods=['GET', 'POST'])
 @login_required
@@ -199,11 +146,10 @@ def insert():
         else:
             overwrite = False
         try:
-            ret = insert_to_table(insert_filename, overwrite)
+            ret = insert_to_table.apply_async(args=[insert_filename, overwrite])
         except Exception, e:
             os.remove(insert_filename)
             return unicode(e)
-        os.remove(insert_filename)
         if ret:
             return unicode(ret)
         else:
@@ -211,10 +157,7 @@ def insert():
     return render_template('insert.html')
 
 def delete_from_table(delete_filename):
-    logging.info('delete_filename: %s' % delete_filename)
-    conn = boto.dynamodb2.connect_to_region(region)
-    data_table = Table(data_db_name, connection=conn)
-    metadata_table = Table(metadata_db_name, connection=conn)
+    logger.info('delete_filename: %s' % delete_filename)
     f = open(delete_filename, 'r')
     line_number = 0
     error_info = {}
@@ -224,7 +167,7 @@ def delete_from_table(delete_filename):
         try:
             (account_id, date) = eachline.split(',')[0:2]
         except Exception, e:
-            logging.error(unicode(e))
+            logger.error(unicode(e))
             error_lines.append(line_number)
             continue
 
@@ -338,7 +281,7 @@ def delete_package(package_name):
     try:
         shutil.rmtree(package_full_path)
     except Exception, e:
-        logging.warning('remove pacakge failed: %s' % unicode(e))
+        logger.warning('remove pacakge failed: %s' % unicode(e))
         pass
 
 @app.route('/script', methods=['GET', 'POST'])

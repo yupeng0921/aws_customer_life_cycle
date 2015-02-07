@@ -84,6 +84,22 @@ def verify_file(filename):
                 if checker(value) is False:
                     raise Exception('%d %s %s %s' % (line_number, name, i_type, value))
 
+def verify_delete(filename):
+    with open(filename) as f:
+        line_number = 0
+        for eachline in f:
+            line_number += 1
+            eachline = eachline.strip()
+            inputs = eachline.split(',')
+            account_id = inputs.pop(0).strip()
+            if check_account_id(account_id) is False:
+                raise Exception('%d account_id: %s' % (line_number, acount_id))
+            date = inputs.pop(0).strip()
+            if check_date(date) is False:
+                raise Exception('%d date: %s' % (line_number, date))
+            if inputs:
+                raise Exception('%d remains: "%s"' % (line_number, inputs))
+
 if __name__ == '__main__':
     import sys
     filename = sys.argv[1]
