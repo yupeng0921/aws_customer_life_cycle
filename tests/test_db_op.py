@@ -5,6 +5,7 @@ import os
 import datetime
 import time
 import yaml
+import pymongo
 from pymongo import MongoClient
 import db_op
 
@@ -15,12 +16,15 @@ with open(conf_path) as f:
 
 mongodb_addr = conf['mongodb_addr']
 mongodb_port = conf['mongodb_port']
+lock_magic = conf['lock_magic']
 data_history_len = conf['data_history_len']
 db_name = 'test_lifecycle_db'
 data_collection_name = 'test_lifecycle_collection'
+lock_collection_name = 'test_lock_collection'
 client = MongoClient(mongodb_addr, mongodb_port)
 db = client[db_name]
-data_collection = db['data_collection_name']
+data_collection = db[data_collection_name]
+lock_collection = db[lock_collection_name]
 
 fake_accounts = [
     {
@@ -51,9 +55,12 @@ class DbOpTest(unittest.TestCase):
         data_collection.drop()
         db_op.data_collection = data_collection
         db_op.data_history_len = 2
+        lock_collection.drop()
+        db_op.lock_collection = lock_collection
 
     def tearDown(self):
         data_collection.drop()
+        lock_collection.drop()
 
     def test_insert_data(self):
         account0 = fake_accounts[0]
@@ -123,3 +130,19 @@ class DbOpTest(unittest.TestCase):
         account = list(db_op.get_accounts())[0]
         val = account.get_data(1, 'ka')
         self.assertEqual(val, account0['data']['ka'])
+
+    def test_lock_and_unlock(self):
+        db_op.lock()
+        ret = list(lock_collection.find({'_id': lock_magic}))
+        self.assertEqual(len(ret), 1)
+        with self.assertRaises(pymongo.helpers.DuplicateKeyError):
+            db_op.lock()
+        db_op.unlock()
+        ret = list(lock_collection.find({'_id': lock_magic}))
+        self.assertEqual(len(ret), 0)
+        db_op.lock()
+        ret = list(lock_collection.find({'_id': lock_magic}))
+        self.assertEqual(len(ret), 1)
+        db_op.unlock()
+        ret = list(lock_collection.find({'_id': lock_magic}))
+        self.assertEqual(len(ret), 0)

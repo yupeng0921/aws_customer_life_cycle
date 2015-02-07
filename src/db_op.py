@@ -14,12 +14,15 @@ mongodb_addr = conf['mongodb_addr']
 mongodb_port = conf['mongodb_port']
 db_name = conf['db_name']
 data_history_len = conf['data_history_len']
+lock_magic = conf['lock_magic']
 
 data_collection_name = conf['data_collection_name']
+lock_collection_name = conf['lock_collection_name']
 
 client = MongoClient(mongodb_addr, mongodb_port)
 db = client[db_name]
-data_collection = db['data_collection_name']
+data_collection = db[data_collection_name]
+lock_collection = db[lock_collection_name]
 
 class Account(object):
     def __init__(self, item):
@@ -73,3 +76,10 @@ def insert_data(account_id, date, data):
     if ret['updatedExisting'] is False:
         primary.update({'data': [data]})
         data_collection.insert(primary)
+
+magic_key = {'_id': lock_magic}
+def lock():
+    lock_collection.insert(magic_key)
+
+def unlock():
+    lock_collection.remove(magic_key)
