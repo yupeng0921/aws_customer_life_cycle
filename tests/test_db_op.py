@@ -2,6 +2,7 @@
 
 import unittest
 import os
+import copy
 import datetime
 import time
 import yaml
@@ -62,7 +63,7 @@ class DbOpTest(unittest.TestCase):
         data_collection.drop()
         lock_collection.drop()
 
-    def test_insert_data(self):
+    def test_insert_data_no_overwrite(self):
         account0 = fake_accounts[0]
         db_op.insert_data(account0['account_id'], account0['date'], account0['data'])
         results = list(data_collection.find())
@@ -86,6 +87,27 @@ class DbOpTest(unittest.TestCase):
         self.assertEqual(result['data'][0]['date'], account1['date'])
         self.assertEqual(result['data'][0]['ka'], account1['data']['ka'])
         self.assertEqual(result['data'][0]['kb'], account1['data']['kb'])
+
+    def test_insert_data_overwrite(self):
+        account0 = fake_accounts[0]
+        db_op.insert_data(account0['account_id'], account0['date'], account0['data'])
+        results = list(data_collection.find())
+        self.assertEqual(len(results), 1)
+        result = results[0]
+        self.assertEqual(result['_id'], account0['account_id'])
+        self.assertEqual(len(result['data']), 1)
+        self.assertEqual(result['data'][0]['ka'], account0['data']['ka'])
+        account0_a = copy.deepcopy(account0)
+        account0_a['data']['ka'] = 'va2'
+        db_op.insert_data(account0_a['account_id'], account0_a['date'], account0_a['data'], overwrite=True)
+        results = list(data_collection.find())
+        self.assertEqual(len(results), 1)
+        result = results[0]
+        self.assertEqual(result['_id'], account0['account_id'])
+        self.assertEqual(len(result['data']), 1)
+        self.assertEqual(result['data'][0]['ka'], 'va2')
+        with self.assertRaises(Exception):
+            db_op.insert_data(account0_a['account_id'], account0_a['date'], account0_a['data'])
 
     def test_get_accounts(self):
         account0 = fake_accounts[0]

@@ -69,13 +69,50 @@ def set_metadata_by_account(account_id, metadata_name, value):
     if ret['updatedExisting'] is False:
         logger.warning('set metadata failed: %s %s %s' % (account_id, metadata_name, value))
 
-def insert_data(account_id, date, data):
+# high level code should get lock when call insert_data and delete_data
+def insert_data(account_id, date, data, overwrite=False):
     primary = {'_id': account_id}
     data.update({'date': date})
-    ret = data_collection.update(primary, {'$push': {'data': {'$each':[data], '$slice':-data_history_len}}})
-    if ret['updatedExisting'] is False:
+    item = data_collection.find_one(primary)
+    if item:
+        exist = False
+        idx = 0
+        for ori_data in item['data']:
+            if ori_data['date'] == date:
+                exist = True
+                break
+            idx += 1
+        if exist is False:
+            data_collection.update(primary, {'$push': {'data': {'$each':[data], '$slice':-data_history_len}}})
+        else:
+            if overwrite is True:
+                item['data'][idx] = data
+                data_collection.update(primary, {'$set': {'data': item['data']}})
+            else:
+                raise Exception('data exist: %s %s' % (account_id, date))
+    else:
         primary.update({'data': [data]})
         data_collection.insert(primary)
+
+def delete_data(account_id, date):
+    primary = {'_id': account_id}
+    item = data_collection.find_one(primary)
+    if not item:
+        return
+    exist = False
+    idx = 0
+    for ori_data in item['data']:
+        if ori_data['date'] == date:
+            exist = True
+            break
+        idx += 1
+    if exist is False:
+        return
+    item['data'].pop(idx)
+    data_collection.update(primary, {'$set': {'data': item['data']}})
+
+def delete_account(account_id):
+    data_collection.remove(primary)
 
 magic_key = {'_id': lock_magic}
 def lock():
