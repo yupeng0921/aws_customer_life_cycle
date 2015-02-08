@@ -13,6 +13,7 @@ server_log_level: info
 interpret_log_level: debug
 daemon_log_level: info
 log_file: __log
+server_log_file: server.log
 data_history_len: 10
 script_name: run.q
 schedule_name: schedule
@@ -21,3 +22,8 @@ daemon_interval: 3
 daemon_pidfile_timeout: 5
 daemon_interpret_timeout: 7200
 lock_magic: lock_magic
+task_db: life_cycle.db
+task_table: task
+task_magic_string: life_cycle_magic
+job_directory: job
+login_file: login_file.yaml

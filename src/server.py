@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 with open('%s/conf.yaml' % os.path.split(os.path.realpath(__file__))[0], 'r') as f:
     conf = yaml.safe_load(f)
 
+app_dir = conf['app_dir']
 server_log_level = conf['server_log_level']
-table_lock_id = conf['table_lock_id']
 job_directory = conf['job_directory']
 schedule_name = conf['schedule_name']
 interpret_file = conf['interpret_file']
@@ -31,12 +31,16 @@ task_db = conf['task_db']
 task_table = conf['task_table']
 task_magic_string = conf['task_magic_string']
 script_name = conf['script_name']
-log_file = conf['log_file']
+server_log_file = conf['server_log_file']
 login_file = conf['login_file']
+
+job_directory = os.path.join(app_dir, job_directory) 
+login_file = os.path.join(app_dir, login_file)
+server_log_file = os.path.join(app_dir, server_log_file)
 
 log_level = get_log_level(server_log_level)
 logger.setLevel(log_level)
-fh = logging.FileHandler(log_file)
+fh = logging.FileHandler(server_log_file)
 fmt = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(message)s'
 datefmt='%Y-%m-%d %H:%M:%S'
 formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
