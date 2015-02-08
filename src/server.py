@@ -160,10 +160,7 @@ def insert():
         except Exception, e:
             os.remove(insert_filename)
             return unicode(e)
-        if ret:
-            return unicode(ret)
-        else:
-            return redirect(url_for('insert'))
+        return redirect(url_for('insert'))
     return render_template('insert.html')
 
 @app.route('/delete', methods=['GET', 'POST'])
@@ -183,10 +180,7 @@ def delete():
             ret = delete_from_table.apply_async(args=[delete_filename], task_id=worker_id)
         except Exception, e:
             return unicode(e)
-        if ret:
-            return unicode(ret)
-        else:
-            return redirect(url_for('delete'))
+        return redirect(url_for('delete'))
     return render_template('delete.html')
 
 def unzip_file(zipfilename, unziptodir):
@@ -272,7 +266,7 @@ def worker_status():
     else:
         task = delete_from_table.AsyncResult(worker_id)
     if task.result:
-        ret = '\n'.join(task.result)
+        ret = '\n'.join(map(str, task.result))
     else:
         ret = 'empty'
     return ret

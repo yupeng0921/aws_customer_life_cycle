@@ -4,7 +4,7 @@ import datetime
 import time
 from celery import Celery
 from verify import verify_file, verify_delete
-from db_op import insert_data, delete_data, lock, unlock
+from db_op import insert_data, delete_data, unlock
 
 app = Celery('worker', backend='amqp', broker='amqp://')
 
@@ -62,11 +62,6 @@ def do_insert(task, filepath, overwrite, result_info):
 @app.task(bind=True)
 def insert_to_table(self, filepath, overwrite):
     result_info = []
-    try:
-        lock()
-    except Exception as e:
-        result_info.append('lock failed: %s' % str(e))
-        return result_info
     try:
         verify_file(filepath)
         result_info.append('verified')
