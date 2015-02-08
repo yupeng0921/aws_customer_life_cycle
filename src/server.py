@@ -20,7 +20,11 @@ from db_op import lock
 
 logger = logging.getLogger(__name__)
 
-with open('%s/conf.yaml' % os.path.split(os.path.realpath(__file__))[0], 'r') as f:
+current_dir = os.path.split(os.path.realpath(__file__))[0]
+conf_path = os.environ.get('LIFECYCLE_CONF')
+if not conf_path:
+    conf_path = os.path.join(current_dir, 'conf.yaml')
+with open(conf_path) as f:
     conf = yaml.safe_load(f)
 
 app_dir = conf['app_dir']
