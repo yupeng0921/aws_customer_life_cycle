@@ -27,3 +27,4 @@ task_table: task
 task_magic_string: life_cycle_magic
 job_directory: job
 login_file: login_file.yaml
+worker_id: life_cycle_worker

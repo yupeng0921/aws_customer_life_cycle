@@ -16,6 +16,7 @@ from werkzeug import secure_filename
 from flask.ext.login import LoginManager, login_required, UserMixin, login_user, logout_user
 from log import get_log_level
 from worker import insert_to_table, delete_from_table
+from db_op import lock
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ task_magic_string = conf['task_magic_string']
 script_name = conf['script_name']
 server_log_file = conf['server_log_file']
 login_file = conf['login_file']
+worker_id = conf['worker_id']
 
 job_directory = os.path.join(app_dir, job_directory) 
 login_file = os.path.join(app_dir, login_file)
@@ -48,7 +50,7 @@ fh.setFormatter(formatter)
 fh.setLevel(log_level)
 logger.addHandler(fh)
 
-upload_folder = 'upload'
+upload_folder = os.path.join(app_dir, 'upload')
 
 profile_file_name = 'profile.json'
 
@@ -149,7 +151,8 @@ def insert():
         else:
             overwrite = False
         try:
-            ret = insert_to_table.apply_async(args=[insert_filename, overwrite])
+            lock()
+            ret = insert_to_table.apply_async(args=[insert_filename, overwrite], task_id=worker_id)
         except Exception, e:
             os.remove(insert_filename)
             return unicode(e)
@@ -172,7 +175,8 @@ def delete():
         delete_filename = os.path.join(upload_folder, delete_filename)
         delete_file.save(delete_filename)
         try:
-            ret = delete_from_table(delete_filename)
+            lock()
+            ret = delete_from_table.apply_async(args=[delete_filename], task_id=worker_id)
         except Exception, e:
             return unicode(e)
         if ret:
@@ -254,6 +258,20 @@ def delete_package(package_name):
     except Exception, e:
         logger.warning('remove pacakge failed: %s' % unicode(e))
         pass
+
+@app.route('/worker_status')
+@login_required
+def worker_status():
+    action = request.args.get('action')
+    if action == 'insert':
+        task = insert_to_table.AsyncResult(worker_id)
+    else:
+        task = delete_from_table.AsyncResult(worker_id)
+    if task.result:
+        ret = '\n'.join(task.result)
+    else:
+        ret = 'empty'
+    return ret
 
 @app.route('/script', methods=['GET', 'POST'])
 @login_required

@@ -21,12 +21,14 @@ class WorkerTest(unittest.TestCase):
 
     @patch('worker.insert_data')
     @patch('os.remove')
-    def test_insert_to_table(self, os_remove, insert_data):
+    @patch('worker.unlock')
+    def test_insert_to_table(self, unlock, os_remove, insert_data):
         r = insert_to_table.apply([fake_account_fullpath, False])
         self.assertEqual('done', r.result[-1])
 
     @patch('worker.delete_data')
     @patch('os.remove')
-    def test_delete_from_table(self, os_remove, delete_data):
+    @patch('worker.unlock')
+    def test_delete_from_table(self, unlock, os_remove, delete_data):
         r = delete_from_table.apply([fake_delete_account_fullpath])
         self.assertEqual('done', r.result[-1])

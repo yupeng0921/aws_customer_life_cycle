@@ -100,11 +100,6 @@ def do_delete(task, filepath, result_info):
 def delete_from_table(self, filepath):
     result_info = []
     try:
-        lock()
-    except Exception as e:
-        result_info.append('lock failed: %s' % str(e))
-        return reslt_info
-    try:
         verify_delete(filepath)
         result_info.append('verified')
         self.update_state(state='PROGRESS', meta = {'result_info': result_info})
