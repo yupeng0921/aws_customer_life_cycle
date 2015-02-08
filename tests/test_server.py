@@ -59,6 +59,10 @@ class ServerTest(unittest.TestCase):
             follow_redirects=True)
         self.assertTrue('insert_file' in rv.data)
 
+    def test_delete_get(self):
+        rv = self.app.get('/delete')
+        self.assertTrue('delete_file' in rv.data)
+
 class ServerLoginTest(unittest.TestCase):
 
     def setUp(self):
