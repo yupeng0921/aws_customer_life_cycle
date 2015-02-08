@@ -15,14 +15,13 @@ from flask import Flask, request, redirect, url_for, render_template, abort, Res
 from werkzeug import secure_filename
 from flask.ext.login import LoginManager, login_required, UserMixin, login_user, logout_user
 from log import get_log_level
-from worker import insert_to_table
+from worker import insert_to_table, delete_from_table
 
 logger = logging.getLogger(__name__)
 
 with open('%s/conf.yaml' % os.path.split(os.path.realpath(__file__))[0], 'r') as f:
     conf = yaml.safe_load(f)
 
-server_log_file = conf['server_log_file']
 server_log_level = conf['server_log_level']
 table_lock_id = conf['table_lock_id']
 job_directory = conf['job_directory']
@@ -156,36 +155,6 @@ def insert():
             return redirect(url_for('insert'))
     return render_template('insert.html')
 
-def delete_from_table(delete_filename):
-    logger.info('delete_filename: %s' % delete_filename)
-    f = open(delete_filename, 'r')
-    line_number = 0
-    error_info = {}
-    for eachline in f:
-        line_number += 1
-        eachline = eachline.strip()
-        try:
-            (account_id, date) = eachline.split(',')[0:2]
-        except Exception, e:
-            logger.error(unicode(e))
-            error_lines.append(line_number)
-            continue
-
-        try:
-            date = change_date_to_epoch_number(date)
-        except Exception, e:
-            msg = 'convert date failed, %s %s' % (date, unicode(e))
-            raise Exception(msg)
-
-        try:
-            ret = data_table.delete_item(account_id=account_id, date=date)
-        except Exception, e:
-            error_info[line_number] = unicode(e)
-            continue
-
-    f.close()
-    return error_info
-
 @app.route('/delete', methods=['GET', 'POST'])
 @login_required
 def delete():
@@ -201,9 +170,7 @@ def delete():
         try:
             ret = delete_from_table(delete_filename)
         except Exception, e:
-            os.remove(delete_filename)
             return unicode(e)
-        os.remove(delete_filename)
         if ret:
             return unicode(ret)
         else:
