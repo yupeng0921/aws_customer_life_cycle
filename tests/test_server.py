@@ -73,6 +73,25 @@ class ServerTest(unittest.TestCase):
             follow_redirects=True)
         self.assertTrue('delete_file' in rv.data)
 
+    @patch('server.insert_to_table')
+    @patch('server.delete_from_table')
+    def test_worker_status(self, delete_from_table, insert_to_table):
+        class FakeTask(object):
+            pass
+        task = FakeTask()
+        delete_from_table.AsyncResult = Mock(return_value=task)
+        insert_to_table.AsyncResult = Mock(return_value=task)
+        task.result = ['foo','bar']
+        rv =self.app.get('/worker_status?actoin=insert')
+        self.assertEqual('\n'.join(task.result), rv.data)
+        rv =self.app.get('/worker_status?actoin=delete')
+        self.assertEqual('\n'.join(task.result), rv.data)
+        task.result = None
+        rv =self.app.get('/worker_status?actoin=insert')
+        self.assertEqual('empty', rv.data)
+        rv =self.app.get('/worker_status?actoin=delete')
+        self.assertEqual('empty', rv.data)
+
 class ServerLoginTest(unittest.TestCase):
 
     def setUp(self):
