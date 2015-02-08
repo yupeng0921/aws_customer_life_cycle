@@ -55,12 +55,22 @@ class ServerTest(unittest.TestCase):
         insert_to_table.apply_async = Mock(return_value=None)
         rv = self.app.post(
             '/insert',
-            data=dict(insert_file=(StringIO("hi everyone"), 'test.txt')),
+            data=dict(insert_file=(StringIO('foo'), 'bar.txt')),
             follow_redirects=True)
         self.assertTrue('insert_file' in rv.data)
 
     def test_delete_get(self):
         rv = self.app.get('/delete')
+        self.assertTrue('delete_file' in rv.data)
+
+    @patch('server.lock')
+    @patch('server.delete_from_table')
+    def test_delete_post(self, delete_from_table, lock):
+        delete_from_table.apply_async = Mock(return_value=None)
+        rv = self.app.post(
+            '/delete',
+            data=dict(delete_file=(StringIO('foo'), 'bar.txt')),
+            follow_redirects=True)
         self.assertTrue('delete_file' in rv.data)
 
 class ServerLoginTest(unittest.TestCase):
