@@ -22,13 +22,12 @@ def check_date(date):
         return False
     return True
 
-p_email = re.compile(r'^.*@([a-z0-9]*[-_]?[a-z0-9]+)+[\.][a-z]{2,3}([\.][a-z]{2})?$')
 def check_email(email):
-    m = p_email.match(email)
-    if m:
-        return True
-    else:
+    if not '@' in email:
         return False
+    if email[0] == '@' or email[-1] == '@':
+        return False
+    return True
 
 def check_number(number):
     try:
