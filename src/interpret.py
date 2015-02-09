@@ -9,7 +9,7 @@ import re
 import logging
 import types
 import codecs
-import boto
+from boto import ses
 from log import get_log_level
 from sqs_op import complaint_queue, bounce_queue
 from db_op import get_accounts, set_metadata_by_account
@@ -300,10 +300,10 @@ def send_mail(conf_file, subject_file, body_file, dest_addr, replacements):
         count += 1
 
     if aws_access_key_id and aws_secret_access_key:
-        conn = boto.ses.connect_to_region(\
+        conn = ses.connect_to_region(
             region, aws_access_key_id = aws_access_key_id, aws_secret_access_key = aws_secret_access_key)
     else:
-        conn = boto.ses.connect_to_region(region)
+        conn = ses.connect_to_region(region)
     if format == 'html':
         ret = conn.send_email(source, subject, None, to_addresses, format=format, \
                             reply_addresses=reply_addresses, return_path=return_path, html_body=emailbody)

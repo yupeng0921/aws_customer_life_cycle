@@ -61,7 +61,7 @@ def do_insert(task, filepath, overwrite, result_info):
 
 @app.task(bind=True)
 def insert_to_table(self, filepath, overwrite):
-    result_info = []
+    result_info = [time.ctime()]
     try:
         verify_file(filepath)
         result_info.append('verified')
@@ -93,7 +93,7 @@ def do_delete(task, filepath, result_info):
 
 @app.task(bind=True)
 def delete_from_table(self, filepath):
-    result_info = []
+    result_info = [time.ctime()]
     try:
         verify_delete(filepath)
         result_info.append('verified')

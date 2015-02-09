@@ -38,7 +38,7 @@ class Account(object):
     def set_metadata(self, name, value):
         metadata = {name: value}
         self.item.update(metadata)
-        ret = data_collection.update({'_id': self.account_id}, metadata)
+        ret = data_collection.update({'_id': self.account_id}, {'$set': metadata})
         if ret['updatedExisting'] is not True:
             logger.error('set metadata failed: %s %s %s' % (self.account_id,  name, value))
 

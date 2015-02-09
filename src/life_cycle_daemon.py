@@ -9,25 +9,26 @@ import sqlite3
 import subprocess
 from daemon import runner
 
-with open(u'%s/conf.yaml' % os.path.split(os.path.realpath(__file__))[0], u'r') as f:
+with open('%s/conf.yaml' % os.path.split(os.path.realpath(__file__))[0], 'r') as f:
     conf = yaml.safe_load(f)
 
 current_dir = os.path.split(os.path.realpath(__file__))[0]
 
-daemon_log_file = conf[u'daemon_log_file']
-daemon_debug_flag = conf[u'daemon_debug_flag']
-job_directory = conf[u'job_directory']
-interpret_file = conf[u'interpret_file']
-task_db = conf[u'task_db']
-task_table = conf[u'task_table']
-task_magic_string = conf[u'task_magic_string']
-daemon_interval = conf[u'daemon_interval']
-daemon_stdin_path = conf[u'daemon_stdin_path']
-daemon_stdout_path = conf[u'daemon_stdout_path']
-daemon_stderr_path = conf[u'daemon_stderr_path']
-daemon_pidfile_path = conf[u'daemon_pidfile_path']
-daemon_pidfile_timeout = conf[u'daemon_pidfile_timeout']
-daemon_interpret_timeout = conf[u'daemon_interpret_timeout']
+daemon_log_file = conf['daemon_log_file']
+daemon_debug_flag = conf['daemon_debug_flag']
+app_dir = conf['app_dir']
+job_directory = conf['job_directory']
+interpret_file = conf['interpret_file']
+task_db = conf['task_db']
+task_table = conf['task_table']
+task_magic_string = conf['task_magic_string']
+daemon_interval = conf['daemon_interval']
+daemon_stdin_path = conf['daemon_stdin_path']
+daemon_stdout_path = conf['daemon_stdout_path']
+daemon_stderr_path = conf['daemon_stderr_path']
+daemon_pidfile_path = conf['daemon_pidfile_path']
+daemon_pidfile_timeout = conf['daemon_pidfile_timeout']
+daemon_interpret_timeout = conf['daemon_interpret_timeout']
 subprocess_stdout = conf['subprocess_stdout']
 subprocess_stderr = conf['subprocess_stderr']
 
@@ -47,39 +48,41 @@ class RunTask():
         def run(self):
             format = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s - %(message)s'
             datefmt='%Y-%m-%d %H:%M:%S'
-            if daemon_debug_flag == u'debug':
+            if daemon_debug_flag == 'debug':
                 level = logging.DEBUG
             else:
                 level = logging.INFO
             logging.basicConfig(filename=self.log_file, level=level, format=format, datefmt=datefmt)
             cx = sqlite3.connect(self.db_path)
             cu = cx.cursor()
-            cmd = u'create table if not exists %s (' % self.table_name + \
-                u'magic_string varchar(10) primary key,' + \
-                u'package_name varchar(255),' + \
-                u'status varchar(10)' + \
-                u')'
+            cmd = 'create table if not exists %s (' % self.table_name + \
+                'magic_string varchar(10) primary key,' + \
+                'package_name varchar(255),' + \
+                'status varchar(10)' + \
+                ')'
             cu.execute(cmd)
+            cx.commit()
             cu.close()
-            logging.info(u'come to loop')
+            logging.info('come to loop')
             while True:
                 cu = cx.cursor()
-                cmd = u'select * from %s where magic_string="%s"' % (self.table_name, self.magic_string)
+                cmd = 'select * from %s where magic_string="%s"' % (self.table_name, self.magic_string)
                 cu.execute(cmd)
                 ret = cu.fetchone()
                 if not ret:
-                    logging.debug(u'empty, continue to sleep')
+                    logging.debug('empty, continue to sleep')
                     time.sleep(self.daemon_interval)
                     continue
                 (magic_string, package_name, status) = ret
-                if status == u'done':
-                    logging.debug(u'done, continue to sleep')
+                if status == 'done':
+                    logging.debug('done, continue to sleep')
                     time.sleep(self.daemon_interval)
                     continue
-                logging.info(u'package: %s' % package_name)
+                logging.info('package: %s' % package_name)
                 try:
-                    cmd = u'python %s/%s %s' % (current_dir, interpret_file, package_name)
-                    logging.debug(u'run interpret: %s' % cmd)
+                    job_dir = os.path.join(app_dir, job_directory)
+                    cmd = 'python %s/%s %s %s' % (current_dir, interpret_file, job_dir, package_name)
+                    logging.debug('run interpret: %s' % cmd)
                     f_stdout = open(subprocess_stdout, 'w')
                     f_stderr = open(subprocess_stderr, 'w')
                     p = subprocess.Popen(cmd, shell=True, stdout=f_stdout, stderr=f_stderr)
@@ -87,10 +90,10 @@ class RunTask():
                     f_stdout.close()
                     f_stderr.close()
                 except Exception, e:
-                    logging.error(u'run interpret failed: %s' % unicode(e))
-                cmd = u'''update %s set status="done" where magic_string = "%s"''' % \
+                    logging.error('run interpret failed: %s' % unicode(e))
+                cmd = '''update %s set status="done" where magic_string = "%s"''' % \
                     (self.table_name, self.magic_string)
-                logging.debug(u'set to done, cmd: %s' % cmd)
+                logging.debug('set to done, cmd: %s' % cmd)
                 cu.execute(cmd)
                 cx.commit()
                 cu.close()
