@@ -162,7 +162,12 @@ def insert():
             os.remove(insert_filename)
             return unicode(e)
         return redirect(url_for('insert'))
-    return render_template('insert.html')
+    task = insert_to_table.AsyncResult(worker_id)
+    if task:
+        init_status = '\n'.join(map(str, task.result))
+    else:
+        init_status = 'empty'
+    return render_template('insert.html', init_status=init_status)
 
 @app.route('/delete', methods=['GET', 'POST'])
 @login_required
@@ -182,7 +187,12 @@ def delete():
         except Exception, e:
             return unicode(e)
         return redirect(url_for('delete'))
-    return render_template('delete.html')
+    task = delete_from_table.AsyncResult(worker_id)
+    if task:
+        init_status = '\n'.join(map(str, task.result))
+    else:
+        init_status = 'empty'
+    return render_template('delete.html', init_status=init_status)
 
 def unzip_file(zipfilename, unziptodir):
     if not os.path.exists(unziptodir): os.mkdir(unziptodir, 0777)
