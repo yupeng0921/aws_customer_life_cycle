@@ -119,7 +119,7 @@ def login():
         logger.info(registeredUser.password)
         if registeredUser != None and unicode(registeredUser.password) == unicode(password):
             login_user(registeredUser)
-            return redirect(url_for('index'))
+            return redirect(request.args.get('next') or url_for('index'))
         else:
             logger.warning('invalide username or password: %s %s' % (username, password))
             return abort(401)
@@ -163,7 +163,7 @@ def insert():
             return unicode(e)
         return redirect(url_for('insert'))
     task = insert_to_table.AsyncResult(worker_id)
-    if task:
+    if task and task.result:
         init_status = '\n'.join(map(str, task.result))
     else:
         init_status = 'empty'
@@ -188,7 +188,7 @@ def delete():
             return unicode(e)
         return redirect(url_for('delete'))
     task = delete_from_table.AsyncResult(worker_id)
-    if task:
+    if task and task.result:
         init_status = '\n'.join(map(str, task.result))
     else:
         init_status = 'empty'
