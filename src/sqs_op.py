@@ -7,6 +7,7 @@ import logging
 import types
 import boto.sqs
 
+logger = logging.getLogger(__name__)
 conf_file_path = os.path.join(os.path.split(os.path.realpath(__file__))[0], 'conf.yaml')
 with open('%s/conf.yaml' % os.path.split(os.path.realpath(__file__))[0], 'r') as f:
     conf = yaml.safe_load(f)
@@ -40,14 +41,14 @@ class Queue():
             for message in rs:
                 body = message.get_body()
                 if type(body) is not types.DictType:
-                    logging.warning('invalid message body: %s' % body)
+                    logger.warning('invalid message body: %s' % body)
                     unused_list.append((message, 0))
                     continue
                 try:
                     source, dests = self._exact_addr_from_body(body)
                 except Exception, e:
-                    logging.warning('parse body failed body: %s' % body)
-                    logging.warning('parse body failed err: %s' % unicode(e))
+                    logger.warning('parse body failed body: %s' % body)
+                    logger.warning('parse body failed err: %s' % unicode(e))
                     unused_list.append((message, 0))
                     continue
                 if source == source_address:
@@ -57,14 +58,23 @@ class Queue():
                 else:
                     unused_list.append((message, 0))
             rs = self.queue.get_messages(num_messages=self.num_messages)
-        if unused_list:
-            self.queue.change_message_visibility_batch(unused_list)
+        while unused_list:
+            tmp_num = min(len(unused_list), self.num_messages)
+            tmp_list = []
+            for i in xrange(tmp_num):
+                tmp_list.append(unused_list.pop())
+            self.queue.change_message_visibility_batch(tmp_list)
         return ret_list
     def _exact_addr_from_body(self, body):
         raise Exception('child should overwrite this method')
     def delete_messages(self):
-        if self.used:
-            self.queue.delete_message_batch(self.used)
+        while self.used:
+            tmp_num = min(len(self.used), self.num_messages)
+            tmp_list = []
+            for i in xrange(tmp_num):
+                tmp_list.append(self.used.pop())
+            logger.warning('%s', tmp_list)
+            self.queue.delete_message_batch(tmp_list)
 
 class ComplaintQueue(Queue):
     def _exact_addr_from_body(self, body):
