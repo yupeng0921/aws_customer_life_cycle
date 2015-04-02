@@ -58,9 +58,8 @@ class Account(object):
         return data[name]
 
 def get_accounts():
-    items = data_collection.find()
+    items = data_collection.find(no_cursor_timeout=True)
     for item in items:
-        print(item)
         yield Account(item)
 
 def set_metadata_by_account(account_id, metadata_name, value):

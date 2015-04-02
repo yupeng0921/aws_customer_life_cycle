@@ -186,7 +186,7 @@ class DbOpTest(unittest.TestCase):
         db_op.lock()
         ret = list(lock_collection.find({'_id': lock_magic}))
         self.assertEqual(len(ret), 1)
-        with self.assertRaises(pymongo.helpers.DuplicateKeyError):
+        with self.assertRaises(pymongo.errors.DuplicateKeyError):
             db_op.lock()
         db_op.unlock()
         ret = list(lock_collection.find({'_id': lock_magic}))
